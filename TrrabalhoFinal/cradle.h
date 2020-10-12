@@ -4,6 +4,7 @@
 #define MAX_NAME 20
 #define MAX_NUM 30
 char lookahead;
+int labelCount; 
 
 /*
 *@brief inicia o compilador
@@ -13,7 +14,68 @@ void init();
 /*
 *@brief reconhece e traduz um comando qualquer
 */
-void other()
+void other();
+
+/*
+*@brief analisa e traduz o programa
+*/
+void programa();
+
+/*
+*@brief analisa, identifica o inicio/fim de umbloco  e o traduz 
+*/
+void block(int exitLabel);
+
+/*
+*@brief cria um rótulo
+*/
+int newLabel();
+
+/*
+*@brief emite o rótulo
+*/
+int postLabel(int lbl);
+
+/*
+*@brief verifica condicionais
+*/
+void condition();
+
+/*
+*@brief analiza e traduz o comando de interrupção de laço.
+*/
+void doBreak(int exitLabel);
+
+/*
+*@brief trata do comando condicional if
+*/
+void doIf(int exitLabel);
+
+/*
+*@brief trata do comando de repetição while
+*/
+void doWhile();
+
+/*
+*@brief trata do comando de repetição loop, esse comando consiste em um laço de repetição infinito, 
+*sendo similar a while(1)
+*/
+void doLoop();
+
+/*
+*@brief trata do comando de repetição REPEAT-UNTIL (advindo do Pascal)
+*/
+void doRepeat();
+
+/*
+*@brief implementa o comando for (aqui a sua sintaxe será similar a do Basic)
+*/
+void doFor();
+
+/*
+*@brief implementa laço Do, que tem o seu contador decrementado a cada iteração.
+*/
+void doDo();
 
 /*
 *@brief lê caractere

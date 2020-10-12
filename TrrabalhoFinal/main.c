@@ -3,7 +3,7 @@
 
 int main(){
 	init();
-	other();
+	programa();
 	//assignment();
 	//if(lookahead !='\n')expected("New Line");
 
