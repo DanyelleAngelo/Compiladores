@@ -1,9 +1,11 @@
-#ifndef CRADLE_H
-#define CRADLE_H
+#ifndef INTERPRETER_H
+#define INTERPRETER_H
 
 #define MAX_NAME 20
 #define MAX_NUM 30
+#define MAXVAR 26
 char lookahead;
+int *var;
 
 /*
 *@brief inicia o compilador
@@ -11,14 +13,19 @@ char lookahead;
 void init();
 
 /*
+*@brief aloca espaço e inicializa a matriz que guardará nossas variáveis
+*/
+void initVar();
+
+/*
 *@brief lê caractere
 */
 void nextChar();
 
 /*
-*@brief ignora os espaços em branco, enquanto enncontrar um caracter em branco chama a função nextChar() para ler um novo caractere.
+*@brief lê  o próximo caractere sempre que encontra uma quebra de linha (remove as quebras de linha da nossa análise)
 */
-void skipWhite();
+void newLine();
 
 /*
 *@brief mostra uma mensagem de erro com formatação
@@ -43,12 +50,12 @@ void match(char c);
 /*
 *@brief verifca se o nome de um indetificador é formado por letras
 */
-char getName(char *identifier);
+char getName();
 
 /*
 *@brief verifica se lookhead é um número
 */
-char getNum(char *number);
+int getNum();
 
 /*
 *@brief exibe uma instrução
@@ -58,22 +65,17 @@ void emit(char *fmt, ...);
 /* 
 * @brief reconhece e traduz uma expressão 
 */
-void expression();
+int expression();
 
 /*
 *@brief reconhece e traduz um termo
 */
-void term();
+int term();
 
 /*
 *@brief reconhece um termo de uma expressão e salva o mesmo no registrador AX
 */
-void factor();
-
-/*
-*@brief verifica se o identificador analisado é a assinatura de uma função ou uma variável(ele faz isso lelndo o próximo caractere e verificando se ele é '(' ou não)
-*/
-void ident();
+int factor();
 
 /*
 *@brief lê um caractere, verifica se o caractere seguinte é o sinal de atribuição, em caso positivo traduz a expressão.
@@ -85,23 +87,18 @@ void assignment();
 */
 int isAddOp(char c);
 
-/* 
-* @brief reconhece operação de multiplicação e traduz pra assembly a expressão
+/*
+*@brief verifica se o caractere analisado é um operador de divisão ou multiplicação
 */
-void multiply();
+int isMulOp(char c);
+
+/*
+*@brief interpreta um comando de entrada
+*/
+void input();
 
 /* 
-* @brief reconhece operação de divisão e traduz pra assembly a expressão analisada
+*@brief interpreta um comando de saída
 */
-void divide();
-
-/* 
-* @brief reconhece operação de adição e traduz pra assembly a expressão usando o operador ADD
-*/
-void add();
-
-/* 
-* @brief reconhece operação de subtração e traduz pra assembly a expressão usando o operador SUB
-*/
-void subtract();
+void output();
 #endif
