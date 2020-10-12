@@ -48,4 +48,43 @@ char getNum();
 */
 void emit(char *fmt, ...);
 
+/* 
+* @brief reconhece e traduz uma expressão 
+*/
+void expression();
+
+/*
+*@brief reconhece e traduz um termo
+*/
+void term();
+
+/*
+*@brief reconhece um termo de uma expressão e salva o mesmo no registrador AX
+*/
+void factor();
+
+/*
+*@brief verifica se o caractere analisado é um operador de soma ou subtração
+*/
+int isAddOp(char c);
+
+/* 
+* @brief reconhece operação de multiplicação e traduz pra assembly a expressão
+*/
+void multiply();
+
+/* 
+* @brief reconhece operação de divisão e traduz pra assembly a expressão analisada
+*/
+void divide();
+
+/* 
+* @brief reconhece operação de adição e traduz pra assembly a expressão usando o operador ADD
+*/
+void add();
+
+/* 
+* @brief reconhece operação de subtração e traduz pra assembly a expressão usando o operador SUB
+*/
+void subtract();
 #endif

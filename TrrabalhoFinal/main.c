@@ -3,5 +3,7 @@
 
 int main(){
 	init();
+	expression();
+
 	return 0;
 }
