@@ -11,6 +11,11 @@ char lookahead;
 void init();
 
 /*
+*@brief reconhece e traduz um comando qualquer
+*/
+void other()
+
+/*
 *@brief lê caractere
 */
 void nextChar();
@@ -43,12 +48,12 @@ void match(char c);
 /*
 *@brief verifca se o nome de um indetificador é formado por letras
 */
-char getName(char *identifier);
+char getName();
 
 /*
 *@brief verifica se lookhead é um número
 */
-char getNum(char *number);
+char getNum();
 
 /*
 *@brief exibe uma instrução

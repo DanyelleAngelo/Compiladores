@@ -3,8 +3,9 @@
 
 int main(){
 	init();
-	assignment();
-	if(lookahead !='\n')expected("New Line");
+	other();
+	//assignment();
+	//if(lookahead !='\n')expected("New Line");
 
 	return 0;
 }
