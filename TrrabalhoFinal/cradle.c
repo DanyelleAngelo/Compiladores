@@ -7,10 +7,15 @@
 
 void init(){
 	nextChar();
+	skipWhite();
 }
 
 void nextChar(){
 	lookahead = getchar();
+}
+
+void skipWhite(){
+	while(lookahead == ' ' || lookahead == '\t')nextChar();
 }
 
 void error(char *fmt, ...){
@@ -46,30 +51,36 @@ void expected(char *fmt, ...){
 
 void match(char c){
 	if(lookahead != c) expected("'%c'",c);
-
 	nextChar();
+	skipWhite();
 }
 
-char getName(){
-	char identifierName;
+char getName(char *identifier){
+	int i;
 
 	if(!isalpha(lookahead)) expected("Identifier");
 
-	identifierName = toupper(lookahead);
-	nextChar();
-
-	return identifierName;
+	for(i=0;isalnum(lookahead);i++){
+		if(i>=MAX_NAME)fatal("Identifier is very long!");
+		identifier[i] = toupper(lookahead);
+		nextChar();
+	}
+	identifier[i] = '\0';
+	skipWhite();
 }
 
-char getNum(){
-	char n;
+char getNum(char *number){
+	int i;
 
 	if(!isdigit(lookahead)) expected("Digit");
 
-	n = lookahead;
-	nextChar();
-
-	return n;
+	for(i=0;isdigit(lookahead);i++){
+		if(i>=MAX_NUM)fatal("Number is very long!");
+		number[i] = lookahead;
+		nextChar();
+	}
+	number[i] = '\0';
+	skipWhite();
 }
 
 void emit(char *fmt, ...){
@@ -121,32 +132,36 @@ void term(){
 }
 
 void factor(){
+	char number[MAX_NUM + 1];
 	if(lookahead == '('){
 		match('(');
 		expression();
 		match(')');
 	}
-	else if(isalpha(lookahead)) ident();
-	else emit("MOV AX, %c", getNum());
+	else if(isalpha(lookahead)){ident();}
+	else{
+		getNum(number);
+		emit("MOV AX, %s", number);
+	}
 	
 }
 
 void ident(){
-	char name;
-	name = getName();
+	char identifier[MAX_NAME +1];
+	getName(identifier);
 	if(lookahead == '('){
 		match('(');
 		match(')');
-		emit("CALL %c", name);
-	}else emit("MOV AX, [%c]", name);
+		emit("CALL %s", identifier);
+	}else emit("MOV AX, [%s]", identifier);
 }
 
 void assignment(){
-	char name;
-	name = getName();
+	char identifier[MAX_NAME +1];
+	getName(identifier);
 	match('=');
 	expression();
-	emit("MOV [%c], AX",name);
+	emit("MOV [%s], AX",identifier);
 }
 
 int isAddOp(char c){

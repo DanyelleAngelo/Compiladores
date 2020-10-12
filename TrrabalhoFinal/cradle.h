@@ -1,6 +1,8 @@
 #ifndef CRADLE_H
 #define CRADLE_H
 
+#define MAX_NAME 20
+#define MAX_NUM 30
 char lookahead;
 
 /*
@@ -12,6 +14,11 @@ void init();
 *@brief lê caractere
 */
 void nextChar();
+
+/*
+*@brief ignora os espaços em branco, enquanto enncontrar um caracter em branco chama a função nextChar() para ler um novo caractere.
+*/
+void skipWhite();
 
 /*
 *@brief mostra uma mensagem de erro com formatação
