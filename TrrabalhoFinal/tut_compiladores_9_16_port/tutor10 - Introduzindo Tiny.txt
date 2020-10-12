@@ -1,0 +1,2443 @@
+VAMOS CONSTRUIR UM COMPILADOR!
+por Jack W. Crenshaw, Ph.D. (21/05/1989)
+
+Copyright (C) 1989 Jack W. Crenshaw. Todos os direitos reservados.
+Tradução e adaptação: Felipo Soranz (23/05/2002)
+
+Parte 10: Introduzindo "Tiny"
+-----------------------------
+
+Na última seção, eu lhes mostrei a idéia geral para o desenvolvimento top-down de um compilador. Eu lhe mostrei os primeiros passos no processo para compiladores Pascal e C, mas eu parei muito antes de chegarmos a completá-los. A razão é simples: se vamos produzir um compilador real, funcional para alguma linguagem, eu prefiro que seja para KISS, a linguagem que eu venho definindo nesta série de tutoriais.
+
+Nesta seção, nós vamos fazer exatemente isto, para um subconjunto de KISS que eu decidi chamar de TINY.
+
+O processo vai ser essencialmente aquele mostrado no capítulo 9, exceto por uma diferença notável. Naquele capítulo eu sugeri que você começasse com uma descrição BNF completa  da linguagem. Isto é bom para algo como Pascal ou C, para as quais a definição da linguagem é sólida. No caso de TINY, porém, nós ainda não temos uma descrição completa... pois até agora estivemos definindo a linguagem conforme seguimos. Mas não há nada de errado com isso. Na verdade, é preferível, já que podemos adaptar ligeiramente a linguagem conforme avançamos, para manter a análise sintática fácil.
+
+Então, no desenvolvimento a seguir, nós vamos na verdade desenvolver tanto a linguagem quanto o compilador numa abordagem top-down. A descrição BNF vai crescer com o compilador.
+
+Neste processo, haverá um certo número de decisões a serem tomada, cada uma influenciando a BNF e portanto a natureza da linguagem. A cada ponto de decisão eu vou tentar explicar os motivos por trás da minha escolha. Deste modo, se você tiver uma opinião diferente e preferir uma outra opção, você pode escolhê-la. Agora você tem o conhecimento para isto. Eu acho que é importante notar que nada do que fazemos aqui é totalmente definitivo. Quando VOCÊ estiver projetando a SUA linguagem, você deve se sentir livre para fazê-la do SEU jeito.
+
+Muitos de vocês podem perguntar neste ponto: Por que começar tudo de novo? Nós já temos um subconjunto de KISS como produto do capítulo 7 (análise léxica). Por que não simplesmente estendê-lo conforme necessário? A resposta é tripla. Primeiro, eu estive fazendo algumas mudanças para simplificar ainda mais o programa... mudanças como encapsular as rotinas de geração de código, de forma que possamos converter o programa para outras plataformas alvo mais facilmente. Segundo, eu quero que você veja como o desenvolvimento pode realmente ser feito partindo numa abordagem top-down como foi discutido no último capítulo. Finalmente, nós dois precisamos praticar. Cada vez que eu passo por este exercício eu fico um pouco melhor, e você também ficará.
+
+Começando
+---------
+
+Há muitos anos houveram linguagens chamadas Tiny BASIC, Tiny Pascal e Tiny C. Cada uma das quais era um subconjunto de suas línguas-mãe completas. Tiny BASIC, por exemplo, possuia apenas variáveis globais definidas cujo nome era definido por uma única letra. Só suportava um único tipo de dados. Soa familiar? Neste ponto nós já temos quase todas as ferramentas necessárias pra construir uma linguagem como esta.
+
+Porém, qualquer linguagem Tiny-alguma-coisa ainda carrega alguma bagagem herdade de sua língua-mãe. Eu sempre fiquei imaginando se isso é uma boa idéia. Certamente, uma linguagem baseada em alguma outra terá a vantagem de ter certa familiaridade, mas pode haver também algum tipo de sintaxe peculiar trazida da linguagem de origem que pode adicionar complexidade descnecessária ao compilador. (Em nenhum lugar isto é mais verdadeiro que em Small C.)
+
+Eu sempre imaginei quão pequeno e simples um compilador poderia ser e ainda assim ser útil, se for projetado para ser ao mesmo tempo fácil de usar e simples de processar. Vamos verificar. Esta linguagem será chamada simplesmente "TINY". É um subconjunto de KISS, a qual eu mesmo não defini completamente, que pelo menos vai nos permitir consistência (!). Eu acho que você pode chamá-la de TINY KISS se quiser, mas eu vou chamá-la simplesmente de TINY. 
+
+As limitações principais de TINY vão ser por causa de coisas que ainda não cobrimos, como tipos de dados. Como suas primas Tiny C e Tiny BASIC, TINY só vai ter um tipo de dados, inteiros de 16-bits. A primeira versão que desenvolvermos também não vai possuir chamadas de rotinas e vai usar nomes de variáveis de uma só letra, embora como você verá podemos remover estas restrições sem muito esforço.
+
+A linguagem que eu tenho em mente vai compartilhar algumas das boas características de Pascal, C, e Ada. Porém, tendo aprendido uma lição na comparação entre compiladores Pascal e C no capítulo anterior, TINY vai ter uma aparência decididamente próxima de Pascal. Sempre que apropriado, uma estrutura de linguagem vai ser delimitada por palavras-chave ou símbolos, para que o analisador saiba para onde está indo sem precisar adivinhar.
+
+Outra regra fundamental: conforme seguimos, eu gostaria de manter o compilador produzindo código real e executável. Mesmo que ele não faça muita coisa no começo, pelo menos ele vai fazer corretamente.
+
+Finalmente, eu vou usar algumas restrições de Pascal que fazem sentido: todos os dados e rotinas devem ser declarados antes de serem usados. Isto faz certo sentido, mesmo que por enquanto o único tipo de dados usado seja o inteiro. Esta regra por sua vez diz que o único lugar em que podemos colocar o código executável para o programa principal é no fim da listagem.
+
+A definição de mais alto nível é similar à de Pascal:
+
+	<program> ::= PROGRAM <top-level decl> <main> '.'
+	
+Nós já chegamos num ponto de decisão. Minha primeira idéia era fazer do bloco principal opcional. Não faz sentido criar um "programa" sem uma rotina principal, mas faz sentido se permitirmos múltiplos módulos, que podem ser combinados depois. De fato, eu pretendo permitir insto em KISS. Mas então estaríamos começando com algo que eu prefiro deixar para depois. O termo PROGRAM não é realmente um nome muito bom. MODULE de Modulo-2 ou Unit do Turbo Pascal seria mais apropriado. Em segundo lugar, o que dizer a respeito de regras de escopo? Nós precisaríamos de uma convenção para lidar com a visibilidade dos nomes através dos módulos. Por enquanto é melhor manter as coisas simples e ignorar esta idéia.
+
+Há também uma decisão com relação a permitir que o programa principal fique somente no fim. Eu trabalhei com a idéia de permitir que sua posição fosse opcional, como em C. A natureza dos montadores como o TASM (que é o que eu estou usando) permitem que isto seja realmente fácil de fazer. Mas isto não faz muito sentido do ponto de vista da regra que estamos usando. Como em Pascal todos os dados e rotinas devem ser declarados antes de referenciados. Como o programa principal só pode chamar subrotinas que já foram declaradas, a única posição que faz sentido é no final, como em Pascal.
+
+Dada a BNF acima, vamos criar o analisador que reconhece apenas os limitadores.
+
+void prog()
+{
+	match('p');
+	header();
+	prolog();
+	match('.');
+	epilog();
+}
+
+A rotina "header" apenas emite o código inicial necessário para o montador:
+
+void header()
+{
+	printf(".model small\n");
+	printf(".stack\n");
+	printf(".code\n");
+        printf("PROG segment byte public\n");
+        printf("\tassume cs:PROG,ds:PROG,es:PROG,ss:PROG\n");
+}
+
+As rotinas "prolog" e "epilog" emitem código o código que identifica o programa principal. O epilogo contém algum código de inicialização e o prólogo código para retornar ao sistema operacional:
+
+void prolog()
+{
+        printf("MAIN:\n");
+        printf("\tmov ax, PROG\n");
+        printf("\tmov ds, ax\n");
+        printf("\tmov es, ax\n");
+}
+
+void epilog()
+{
+        printf("\tmov ax,4C00h\n");
+        printf("\tint 21h\n");
+        printf("PROG ends\n");
+        printf("\tend MAIN\n");
+}
+
+O programa principal apenas chama "prog", e verifica se o final está correto:
+
+int main()
+{
+	init();
+        prog();
+
+        if (look != '\n')
+                fatal("Unexpected data after \'.\'");
+
+	return 0;
+}
+
+Neste ponto, TINY vai aceitar apenas uma entrada, um programa vazio:
+
+	PROGRAM . (ou "p." no nosso caso.)
+	
+Note, porém, que o compilador gera código correto para este programa. Ele pode ser executado, e fazer o que se espera que um programa vazio faça, ou seja, nada a não ser voltar para o sistema operacional.
+
+Apenas por curiosidade, um dos meus testes de eficiência de compiladores favoritos é compilar, link-editar, e executar um programa vazio na linguagem envolvida. É possível aprender muito a respeito da implementação medindo o "overhead" de tempo necessário para compilar o que deveria ser um caso trivial. Também é interessante analisar a quantidade de código produzido. Em muitos compiladores, o código pode ser bem grande, porque é incluída sempre a biblioteca de tempo de execução (run-time library) sendo ela necessária ou não. As primeiras versões do Turbo Pascal produziam arquivos objeto de cerca de 12K. VAX C gerava 50K, e há casos em que o espaço é ainda maior!
+
+Um dos menores programas vazíos que eu já vi eram produzidos por compiladores de Modula-2, e eles possuiam algo entre 200-800 bytes.
+
+No caso de TINY, não temos uma biblioteca run-time ainda, então o código objeto é de fato minúsculo: não muito mais do que 1K dependendo do montador e do linker que você estiver usando. (Se mudarmos um pouco o código Assembly para produzir programas .COM do DOS, é possível chegar a apenas alguns bytes, o resto é por causa do "overhead" necessário para programas do tipo .EXE). Isto é quase um recorde, e provavelmente será mantido pois é o código mínimo requerido pelo sistema operacional.
+
+O próximo passo é processar o código para o programa principal. Eu vou usar o bloco "BEGIN" do Pascal:
+
+	<main> ::= BEGIN <block> END
+	
+Aqui, novamente, tivemos que fazer uma decisão. Poderíamos ter escolhido algum tipo de declaração como "PROCEDURE MAIN", assim como em C. Eu devo admitir que esta não é uma idéia ruim... eu particularmente não gosto da abordagem Pascal pois eu geralmente tenho problemas para encontrar o programa principal em uma listagem Pascal. Mas a alternativa é um pouco esquisita também, já que teríamos que lidar com a ocasião em que o usuário omite o a rotina "main" ou escreve seu nome errado. Eu vou escolher a saída mais fácil neste caso.
+
+Outra solução para o problema de "onde está a rotina principal" pode ser obrigar que o programa tenha um nome, e envolver o programa principal assim:
+
+	BEGIN <name>
+	END <name>
+	
+similar à convenção de Modula 2. Isto adiciona um pouco de "confeitaria sintática" à linguagem. Coisas como esta são fáceis de adicionar ou alterar da forma que você preferir, se o projeto da linguagem está em suas mãos.
+
+Para processar a definição de um bloco principal, altere a rotina "prog":
+
+void prog()
+{
+	match('p');
+	header();
+        mainblock();
+	match('.');
+}
+
+Depois adicione a nova rotina:
+
+void mainblock()
+{
+	match('b');
+	prolog();
+	match('e');
+	epilog();
+}
+
+Agora, o único program válido é:
+
+	PROGRAM BEGIN END . (ou "pbe.")
+	
+Não estamos fazendo progresso??? Bom, como de costume a coisa vai melhorando. Você pode testar alguns erros aqui, como omitir o "b" ou o "e", e ver o que acontece. Como sempre, o compilador deve indicar as entradas ilegais.
+
+Declarações
+-----------
+
+O próximo passo é obviamente decidir o que entendemos por uma declaração. Minha intenção aqui é ter dois tipos de declaração: variáveis e procedimentos/funções. No nível mais alto, apenas declarações globais são permitidas, como em C.
+
+Por enquanto só podem haver declarações de variáveis, identificadas pela palavra-chave VAR (abreviado "v"):
+
+	<top-level decls> ::= ( <data declaration> )*
+	<data declaration> ::= VAR <var-list>
+	
+Note que, como só há um tipo de variável, não há necessidade de declarar o tipo. Mais tarde, para a versão completa de KISS, podemos facilmente adicionar uma declaração de tipo.
+
+A rotina "prog" fica:
+
+void prog()
+{
+	match('p');
+	header();
+	topdecls();
+        mainblock();
+	match('.');
+}
+
+Agora adicione estas duas rotinas:
+
+void decl()
+{
+        match('v');
+        nextchar();
+}
+
+void topdecls()
+{
+        while (look != 'b') {
+                switch (look) {
+                  case 'v':
+                        decl();
+                        break;
+                  default:
+                        error("Unrecognized keyword.");
+                        expected("BEGIN");
+                        break;
+                }
+        }
+}
+
+Repare que por enquanto, "decl" não faz muita coisa. Não gera nenhum código, e não processa uma lista... cada variável deve ocorrer num comando VAR separado.
+
+Certo, agora podemos ter qualquer número de declarações de dados, cada uma começando com um "v" de VAR, antes do bloco principal. Tente alguns casos e veja o que acontece.
+
+Declarações e Símbolos
+----------------------
+
+Isto parece interessante, mas continuamos gerando apenas o programa vazio como saída. Um compilador real iria gerar diretivas assembly para alocar memória para as variáveis. Já é hora de fazermos o mesmo.
+
+Com algum código extra, é algo fácil de fazer na rotina "decl". Modifique-a como segue:
+
+void decl()
+{
+        match('v');
+        allocvar(getname());
+}
+
+A rotina "allocvar" simplesmente emite o comando assembly para alocar memória:
+
+void allocvar(char name)
+{
+        printf("%c:\tdw 0\n", name);
+}
+
+Faça o teste agora. Tente uma entrada que declara algumas variáveis, como:
+
+	pvxvyvzbe.
+	
+Viu como o armazenamento é alocado? Simples, não? Note também que o ponto de entrada "MAIN", se encaixa no lugar certo.
+
+Para constar, um compilador "real" também teria uma tabela de símbolos para armazenar as variáveis usadas. Normalmente, a tabela de símbolos é necessária para armazenar o tipo de cada variável. Mas como neste caso todas as variáveis tem o mesmo tipo, não precisamos de uma tabela de símbolos por este motivo. Mas como você vai ver, vamos constatar que um símbolo é necessário mesmo sem a diferença dos tipos, mas vamos por esta questão de lado até que seja necessário.
+
+É claro que ainda não processamos a sintaxe correta para uma declaração de dados, já que ela envolve uma lista de variáveis. Nossa versão permite apenas uma única variável. Isto é fácil de arrumar, também.
+
+A BNF para a <var-list> é:
+
+	<var-list> ::= <ident> (, <ident>)*
+	
+Adicionando esta sintaxe a "decl" temos sua nova versão:
+
+void decl()
+{
+        match('v');
+	for (;;) {
+	        allocvar(getname());
+	        if (look != ',')
+	        	break;
+	        match(',');
+	}
+}
+
+Certo, agora compile este código e faça um teste. Tente uma série de declarações VAR, tente uma lista de diversas variáveis numa só, e tente combinar os dois tipos. Funcionou?
+
+Inicializadores
+---------------
+
+Como estamos tratando de declarações de dados, uma coisa que sempre me incomodou em Pascal é que não é possível inicializar os itens de dados na declaração. Esta característica seria uma certo capricho em uma linguagem que é supostamente uma linguagem mínima. Mas em compensação é tão fácil de adicionar que pareceria uma vergonha não fazê-lo. A BNF passa a ser:
+
+	<var-list> ::= <var> ( <var> ) *
+	<var> ::= <ident> [ = <integer> ]
+	
+Altere "allocvar" desta forma:
+
+void allocvar(char name)
+{
+	char value = '0';
+	
+	if (look == '=') {
+		match('=');
+		value = getnum();
+	}	
+	
+        printf("%c:\tdw %c", name, value);
+}
+
+Aí está: um inicializador com 5 novas linhas de C.
+
+Ok, tente esta versão de TINY e verifique que é possível, de fato, dar às variáveis valores iniciais.
+
+Isto está começando a parecer real! É claro que ainda não faz nada, mas parece bom, não parece?
+
+Antes de deixar esta seção, eu devo lembrá-lo que já usamos duas versões de "getnum". Uma, a primeira, retorna um valor em caracter, um dígito único. A outra aceita valores inteiros multi-dígitos e retorna um valor inteiro. Qualquer uma funcionaria aqui, bastaria alterar "%c" para "%d" em "printf". Mas não há razão para nos limitarmos ao dígito único aqui, então vamos corrigir esta versão e retornar inteiros. Aqui está:
+
+int getnum()
+{
+	int i;
+
+	i = 0;
+
+	if (!isdigit(look))
+		expected("Integer");
+
+	while (isdigit(look)) {
+		i *= 10;
+		i += look - '0';
+		nextchar();
+	}
+	
+        return i;
+}
+
+De fato, deveríamos permitir expressões completas no lugar do analisador, ou pelo menos valores negativos. Por enquanto, vamos permitir apenas valores negativos alterando "allocvar" como segue (repare também nas pequenas alterações para a nova versão de "getnum"):
+
+void allocvar(char name)
+{
+	int value = 0, signal = 1;
+	
+	if (look == '=') {
+		match('=');
+                if (look == '-') {
+                        match('-');
+                        signal = -1;
+                }
+		value = signal * getnum();
+	}	
+	
+        printf("%c:\tdw %d\n", name, value);
+}
+
+Agora, deve ser possível inicializar variáveis com valores negativos e/ou com vários dígitos.
+
+A Tabela de Símbolos
+--------------------
+
+Há um problema com o compilador como ele está agora: ele não faz nada para marcar uma variável quando a declaramos. Então o compilador aloca perfeitamente espaço para diversas variáveis com o mesmo nome. Você pode facilmente verificar isto com uma entrada assim:
+
+	pvavavabe.
+	
+Aqui declaramos a variável "A" três vezes. Como você pode ver, o compilador aceita sem reclamar, e gera três rótulos idênticos. Nada bom!
+
+Mais tarde, quando começarmos a referenciar variáveis, o compilador também vai permitir que referenciemos variáveis que não existem. O montador vai capturar ambas condições de erro, mas não parece muito amigável passar estes erros para o montador. O compilador deveria identificar estes erros no nível da linguagem fonte.
+
+Portanto, mesmo não possuindo uma tabela de símbolos para armazenar os tipos de dados, precisamos instalar uma para checar estas duas condições. Como neste ponto estamos restritos ainda a nomes de variáveis a tabela de símbolos pode ser trivial. Para provê-la, primeiro adicione as seguintes declarações ao início do programa:
+
+
+	#define VARTBL_SZ 26
+	char vartbl[VARTBL_SZ];
+
+E adicione a seguinte função:
+
+int intable(char name)
+{
+	return (vartbl[name - 'A'] != ' ');
+}
+
+Também temos que inicializar a tabela com espaços. Adicione a inicialização em "init":
+
+void init()
+{
+	i = 0;
+	
+	for (i = 0; i < VARTBL_SZ; i++)
+		vartbl[i] = ' ';
+	
+	nextchar();
+}
+
+Finalmente, insira estas linhas no começo de "allocvar":
+
+        if (intable(name)) {
+                fprintf(stderr, "Duplicate variable name: %c", name);
+		exit(1);
+        } else
+                vartbl[name - 'A'] = 'v';
+
+Isto deve bastar. O compilador agora vai reconhecer declarações duplicadas. Mais tarde, também podemos usar "intable" quando gerar referências às variáveis.
+
+Comandos executáveis
+--------------------
+
+Neste ponto, somos capazes de gerar um programa vazio que tem algumas variáveis de dados declaradas e possivelmente inicializadas. Mas até agora não fizemos nada para começar a gerar a primeira linha de código executável.
+
+Acredite ou não, nós quase temos uma linguagem usável! O que está faltando é o código executável que vai no programa principal. Mas este código consiste em comandos de atribuição e de controle... coisas que já fizemos antes. Portanto, não deve levar muito tempo para adicioná-las também.
+
+A definição BNF dada anteriormente para o programa principal incluia o bloco de comandos, que temos ignorado até então:
+
+	<main> ::= BEGIN <block> END
+	
+Por enquanto, podemos considerar o bloco como apenas uma série de comandos de atribuição:
+
+	<block> ::= (assignment)*
+	
+Vamos começar as coisas adicionando um analisador para o bloco. Vamos começar com uma rotina para o comando de atribuição vazia:
+
+void assignment()
+{
+	nextchar();
+}
+
+void block()
+{
+	while (look != 'e')
+		assignment();
+}
+
+Modifique a rotina "mainblock" para chamar "block" conforme abaixo:
+
+void mainblock()
+{
+	match('b');
+	prolog();
+        block();
+	match('e');
+	epilog();
+}
+
+Esta versão ainda não gera nenhum código para os "comandos de atribuição"... tudo o que ela faz é "comer" caracteres até encontrar o "e" de END. Mas ela já é uma preparação para o que segue.
+
+O próximo passo  logicamente é inserir código para o comando de atribuição. Isto é algo que fizemos muitas vezes antes, então eu não vou atrasar as coisas. Desta fez porém, eu gostaria de tratar da geração de código de forma um pouco diferente. Até agora, nós simplesmente emitimos o código para gerar a saída dentro das rotinas do analisador. Um pouco desestruturado, porém, parecia ser a abordagem mais fácil, e tornou fácil ver que tipo de código seria emitido para cada construção.
+
+De qualquer forma, eu percebi que a maioria de vocês gostaria de saber se é possível que o código dependente de CPU poderia ser colocado em outro ponto onde seria mais fácil de portar o código para outra CPU-alvo. A resposta é sim, claro.
+
+Para fazer isto, insira as seguintes rotinas de "geração de código":
+
+/* zera o registrador primário */
+void asm_clear()
+{
+	printf("\txor ax, ax\n");
+}
+
+/* negativa o reg. primário */
+void asm_negative()
+{
+	printf("\tneg ax\n");
+}
+
+/* carrega uma constante numérica no reg. prim. */
+void asm_loadconst(int i)
+{
+	printf("\tmov ax, %d\n", i);
+}
+
+/* carrega uma variável no reg. prim. */
+void asm_loadvar(char name)
+{
+	if (!intable(name))
+		undefined(name);
+	printf("\tmov ax, word ptr %c\n", name);
+}
+
+/* coloca reg. prim. na pilha */
+void asm_push()
+{
+	printf("\tpush ax\n");
+}
+
+/* adiciona o topo da pilha ao reg. prim. */
+void asm_popadd()
+{
+	printf("\tpop bx\n");
+	printf("\tadd ax, bx\n");
+}
+
+/* subtrai o reg. prim. do topo da pilha */
+void asm_popsub()
+{
+	printf("\tpop bx\n");
+	printf("\tsub ax, bx\n");
+	printf("\tneg ax\n");
+}
+
+/* multiplica o topo da pilha pelo reg. prim. */
+void asm_popmul()
+{
+	printf("\tpop bx\n");
+	printf("\timul bx\n");
+}
+
+/* divide o topo da pilha pelo reg. prim. */
+void asm_popdiv()
+{
+	printf("\tpop bx\n");
+	printf("\txchg ax, bx\n");
+	printf("\tcwd\n");
+	printf("\tidiv bx\n");
+}
+
+/* armazena reg. prim. em variável */
+void asm_store(char name)
+{
+	if (!intable(name))
+		undefined(name);
+   	printf("\tmov word ptr bx, ax\n");
+}
+
+A parte boa desta abordagem, logicamente, é que podemos portar redirecionar a saída do compilador para uma nova CPU simplesmente reescrevendo estas rotinas de geração de código. Além disso, vamos descobrir mais tarde que podemos melhor a qualidade do código simplesmente melhorando estas rotinas um pouco, sem ter que alterar o próprio compilador.
+
+Repare que tanto "asm_loadvar" quanto "asm_store" verificam a tabela de símbolos para ter certeza de que a variável está definida. O tratador de erros "undefined" simplesmente mostra o erro e saí, da mesma forma que "expect":
+
+/* avisa a respeito de um identificador desconhecido */
+void undefined(char name)
+{
+	fprintf(stderr, "Error: Undefined identifier %c\n", name);
+	exit(1);
+}
+
+Certo, finalmente estamos prontos para começar a adicionar código executável.
+Faremos isto substituindo a versão vazia de "assignment".
+
+Isto deve ser familiar pra você a esta altura, pois é algo que já fizemos várias vezes. Na verdade, exceto pelas alterações associadas ao código gerado, poderíamos simplesmente copiar as rotinas da parte 7. Como estamos fazendo algumas alterações, eu não vou simplesmente copiá-las, mas vamos seguir um pouco mais rápido que o normal.
+
+A BNF para o comando de atribuição é:
+
+	<assignment> ::= <ident> '=' <expression>
+	<expression> ::= <first term> ( <addop> <term> )*
+	<first term> ::= <first factor> <rest>
+	<term> ::= <factor> <rest>
+	<rest> ::= ( <mulop> <factor> )*
+	<first factor> ::= [ <addop> ] <factor>
+	<factor> ::= <var> | <number> | ( <expression> )
+	
+Esta versão da BNF é também um pouco diferente da que usamos anteriormente... mais uma "variação no tema de uma expressão". Esta versão em particular tem o que eu considero ser o melhor tratamento para o menos unário. Como você verá, ela permite que tratemos de constantes negatives de forma eficiente. Vale a pena mencionar aqui que vimos frequentemente as vantagens de "lapidar" a BNF conforme avançamos, para fazer a linguagem ser fácil de processar. O que você viu agora é um pouco diferente, nós alteramos a BNF para fazer a GERAÇÃO DE CÓDIGO mais eficiente! Isto é novidade nesta série.
+
+De qualquer forma, o código a seguir implementa a BNF:
+
+/* analisa e traduz um fator matemático */
+void factor()
+{
+	if (look == '(') {
+		match('(');
+		expression();
+		match(')');
+	} else if (isalpha(look))
+		asm_loadvar(getname());
+	else
+		asm_loadconst(getnum());
+}
+
+/* analisa e traduz um fator negativo */
+void negfactor()
+{
+	match('-');
+	if (isdigit(look))
+		asm_loadconst(-getnum());
+	else {
+		factor();
+		asm_negative();
+	}
+}
+
+/* analisa e traduz um fator inicial */
+void firstfactor()
+{
+	switch (look) {
+		case '+':
+			match('+');
+			factor();
+			break;
+		case '-':
+			negfactor();
+			break;
+		default:
+			factor();
+			break;
+	}
+}
+
+/* reconhece e traduz uma multiplicação */
+void multiply()
+{
+	match('*');
+	factor();
+	asm_popmul();
+}
+
+/* reconhece e traduz uma divisão */
+void divide()
+{
+	match('/');
+	factor();
+	asm_popdiv();
+}
+
+/* código comum usado por "term" e "firstterm" */
+void term1()
+{
+	while (ismulop(look))  {
+		asm_push();
+		switch (look) {
+		  case '*':
+			multiply();
+			break;
+		  case '/':
+			divide();
+			break;
+		}
+	}
+}
+
+/* analisa e traduz um termo matemático */
+void term()
+{
+	factor();
+	term1();
+}
+
+/* analisa e traduz um termo inicial */
+void firstterm()
+{
+	firstfactor();
+	term1();
+}
+
+/* reconhece e traduz uma adição */
+void add()
+{
+	match('+');
+	term();
+	asm_popadd();
+}
+
+
+
+/* reconhece e traduz uma subtração*/
+void subtract()
+{
+	match('-');
+	term();
+	asm_popsub();
+}
+
+/* analisa e traduz uma expressão matemática */
+void expression()
+{
+	firstterm();
+	while (isaddop(look))  {
+		asm_push();
+		switch (look) {
+		  case '+':
+			add();
+			break;
+		  case '-':
+			subtract();
+			break;
+		}
+	}
+}
+
+/* analisa e traduz um comando de atribuição */
+void assignment()
+{
+	char name;
+
+	name = getname();
+	match('=');
+	expression();
+	asm_store(name);
+}
+
+Agora que você já inseriu todo este código, compile-o e verifique o resultado. Você deve ter agora um código que parece razoável, representando um program completo que vai ser montado corretamento e executado. Temos um compilador!
+
+Expressões Booleanas
+--------------------
+
+O próximo passo também deve ser familiar pra você. Temos que incluir expressões booleanas e operadores relacionais. Novamente, como já lidamos com isto mais de uma vez, eu não vou elaborar muito em cima deles, exceto onde existirem diferenças do que já fizemos. Novamente, nós não vamos simplesmente copiar de outros arquivos poia eu mudei um pouco as coisas. A maioria da mudanças envolveram apenas encapsular a parte dependente de máquina como fizemos para as operações aritméticas. Eu também modifiquei a rotina "notfactor", para ficar semelhante à estrutura de "firstfactor".
+
+Para começar, vamos precisar de mais alguns reconhecedores:
+
+int isorop(char c)
+{
+        return (c == '|' || c == '~');
+}
+
+int isrelop(char c)
+{
+	return (strchr("=#<>", c) != NULL);
+}
+
+Também vamos precisar de mais rotinas de geração de código:
+
+/* inverte reg. prim. */
+void asm_not()
+{
+	 printf("\tnot ax\n");
+}
+
+/* "E" do topo da pilha com reg. prim. */
+void asm_popand()
+{
+	 printf("\tpop bx\n");
+	 printf("\tand ax, bx\n");
+}
+
+/* "OU" do topo da pilha com reg. prim. */
+void asm_popor()
+{
+	 printf("\tpop bx\n");
+	 printf("\tor ax, bx\n");
+}
+
+/* "OU-exclusivo" do topo da pilha com reg. prim. */
+void asm_popxor()
+{
+	 printf("\tpop bx\n");
+	 printf("\txor ax, bx\n");
+}
+
+/* compara topo da pilha com reg. prim. */
+void asm_popcompare()
+{
+	 printf("\tpop bx\n");
+	 printf("\tcmp bx, ax\n");
+}
+
+/* altera reg. primário (e flags, indiretamente) conforme a comparação */
+void asm_relop(char op)
+{
+	char *jump;
+        int l1, l2;
+
+        l1 = newlabel();
+        l2 = newlabel();
+
+	switch (op) {
+	  case '=': jump = "je"; break;
+	  case '#': jump = "jne"; break;
+	  case '<': jump = "jl"; break;
+	  case '>': jump = "jg"; break;
+	}
+
+	printf("\t%s L%d\n", jump, l1);
+	printf("\txor ax, ax\n");
+	printf("\tjmp L%d\n", l2);
+	printf("L%d:\n", l1);
+	printf("\tmov ax, -1\n");
+	printf("L%d:\n", l2);
+}
+
+Estas são as ferramentas de que precisamos. Repare que eu substitui as rotinas dos operadores relacionais por uma só rotina para todos. Desta forma evitamos duplicar o código. Insira também a declaração de "lblcount" e "newlabel" das seções anteriores já que são necessárias nesta rotina.
+
+A BNF para expressões booleanas é:
+
+	<bool-expr> ::= <bool-term> ( <orop> <bool-term> )*
+	<bool-term> ::= <not-factor> ( <andop> <not-factor> )*
+	<not-factor> ::= [ '!' ] <relation>
+	<relation> ::= <expression> [ <relop> <expression> ]
+
+Leitores atentos devem notar que esta sintaxe não inclui o não-terminal "bool-factor" usado nas versões anteriores. Ele foi necessário porque eu permitia as constantes booleanas VERDADEIRO e FALSO. Mas lembre que em TINY não há distinção feita entre tipos booleanos e aritméticos... eles podem ser livremente misturados. Então não há uma necessidade real para estes valores pré-definidos... podemos simplesmente usar -1 e 0, respectivamente.
+
+Em terminologia de C, poderíamos usar os "defines":
+
+	#define TRUE -1
+	#define FALSE 0
+	
+(Isto é, se TINY tivesse um pré-processador.) Mais tarde, quando permitirmos declaração de constantes, estes valores serão pré-definidos pela linguagem.
+
+A razão pela qual eu estou falando disso é por que eu já tentei a alternativa, que é incluir TRUE e FALSE como palavras-chave. O problema com esta abordagem é que ela requer análise léxica para CADA nome de variável em CADA expressão. Se você recordar, eu demonstrei no capítulo 7 que isto pode tornar o compilador consideravelmente mais lento. Como palavras-chave não podem estar em expressões, precisamos fazer a análise léxica apenas no começo de cada novo comando... uma grande melhoria. Portanto, usando a sintaxe acima, não apenas simplificamos a análise sintática, mas melhoramos a própria análise léxica também.
+
+Certo, assumindo que estamos satisfeitos com a sintaxe acima, o código correspondente é o mostrado abaixo:
+
+/* analisa e traduz uma relação */
+void relation()
+{
+	char op;
+
+	expression();
+	if (isrelop(look)) {
+		op = look;
+		match(op); /* só para remover o operador do caminho */
+		asm_push;
+		expression();
+		asm_popcompare();
+		asm_relop(op);
+
+	}
+}
+
+/* analisa e traduz um fator booleano com NOT inicial */
+void notfactor()
+{
+	if (look == '!') {
+		match('!');
+		relation();
+		asm_not();
+	} else
+		relation();
+}
+
+/* analisa e traduz um termo booleano */
+void boolterm()
+{
+	notfactor();
+	while (look == '&') {
+		asm_push();
+		match('&');
+		notfactor();
+		asm_popand();
+	}
+}
+
+/* reconhece e traduz um "OR" */
+void boolor()
+{
+	match('|');
+	boolterm();
+	asm_popor();
+}
+
+/* reconhece e traduz um "xor" */
+void boolxor()
+{
+	match('~');
+	boolterm();
+	asm_popxor();
+}
+
+/* analisa e traduz uma expressão booleana */
+void boolexpression()
+{
+	boolterm();
+	while (isorop(look)) {
+		asm_push();
+		switch (look) {
+		  case '|':
+		  	boolor();
+		  	break;
+		  case '~':
+		  	boolxor();
+		  	break;
+		}
+	}
+}
+
+Repare que eu alterei "relation" para refletir a estrutura usada por "asm_relop". No fim acabamos economizando 8 rotinas e não duplicamos código.
+
+Para juntar tudo, não esqueça de alterar as referências para "expression" nas rotinas "factor" e "assignment" para que elas chamem "boolexpression" agora.
+
+OK, se você já entrou com tudo isto, compile e faça um teste. Primeiro, certifique-se que ainda é possível usar expressões aritméticas. Então, teste uma booleana. Finalmente, certifique-se que é possível atribuir o resultado de relações. Tente, por exemplo:
+
+	pvx,y,zbx=z>ye.
+	
+Que significa:
+
+	PROGRAM
+	VAR X, Y, Z
+	BEGIN
+	X = Z > Y
+	END.
+	
+Viu como isto atribui um valor booleano a X?
+
+Construções de Controle
+-----------------------
+
+Estamos quase em casa. Com expressões booleanas no lugar, basta adicionar as estruturas de controle. Para TINY, só vamos permitir dois tipos, o IF e o WHILE:
+
+	<if> ::= IF <bool-expression> <block> [ ELSE <block> ] ENDIF
+	<while> ::= WHILE <bool-expression> <block> ENDWHILE
+	
+Mais uma vez, deixe-me falar das decisões implícitas nesta sintaxe, que partem fortemente de C ou Pascal. Em ambas linguagens, o "corpo" do IF ou WHILE é considerado como um único comando. Se você pretende usar um bloco de mais de um comando, é preciso criar um comando composto usando BEGIN-END (em Pascal) ou "{}" (em C). Em TINY (e KISS) não há nada parecido com comandos compostos... simples ou múltiplos eles não passam de blocos para nossas linguagens.
+
+Em KISS, todas as estruturas de controle possuem palavras-chave únicas e explícitas delimitando o bloco de comandos, de forma que não há confusão em relação a onde as coisas começam e terminam. Esta é a abordagem moderna, usada em linguagens respeitadas como Ada ou Modula-2, e ela elimina por completo o problema do "ELSE perdido".
+
+Repare que eu poderia ter escolhido usar a mesma palavra-chave END para terminar todas as construções, como é feito em Pascal. (O "}" final em C serve para a mesma coisa.) Mas isto sempre nos leva a confusões, e é por isto que alguns programadores Pascal escrevem coisas como:
+
+	end { loop }
+	end { if }
+	
+Como eu expliquei na parte 5, usando a técnica de terminais únicos como palavras-chave aumenta o tamanho da lista de palavras-chave e portanto deixa mais lenta a análise léxica, mas neste caso parece um preço pequeno a ser pago por segurança garantida. É melhor achar erros em tempo de compilação do que em tempo de execução.
+
+Um último pensamento: As duas construções acima tem os não-terminais:
+
+	<bool-expression> e <block>
+	
+justapostas sem separação por palavras-chave. Em Pascal esperaríamos as palavras-chave THEN e DO nestes locais. Em C, as condições de IF e WHILE são colocadas sempre entre parênteses.
+
+Porém, eu não vejo problemas em deixar fora estas palavras-chave, e o analisador também não tem problema com isso, CONTANDO QUE não haja erros na parte da expressão booleana. Por outro lado, se fossemos incluir estas palavras-chave teríamos mais um nível de segurança com um custo muito baixo, e eu também não vejo problemas nisto. Tome a decisão que você acha mais correta de como proceder.
+
+Certo, com esta explicação, vamos prosseguir. Como de costume, vamos precisar de mais algumas rotinas de geração de código. Estas geram código para desvio condicional e incondicional:
+
+/* desvio incondicional */
+void asm_jmp(int label)
+{
+	printf("\tjmp L%d\n", label);
+}
+
+/* desvio se falso (0) */
+void asm_jmpfalse(int label)
+{
+	printf("\tjz L%d\n", label);
+}
+
+Exceto pela encapsulação da geração de código, as rotinas para analisar as construções de controle são as mesmas vistas anteriormente:
+
+void doif()
+{
+	int l1, l2;
+	
+	match('i');
+	boolexpression();
+	l1 = newlabel();
+	l2 = l1;
+	asm_jmpfalse(l1);
+	block();
+	if (look == 'l') {
+		match('l');
+		l2 = newlabel();
+		asm_jmp(l2);
+		printf("L%d:\n", l1);
+		block();
+	}
+	printf("L%d:\n", l2);
+	match('e');
+}
+
+void dowhile()
+{
+	int l1, l2;
+
+	match('w');
+	l1 = newlabel();
+	l2 = newlabel();
+	printf("L%d:\n", l1);
+	boolexpression();
+	asm_jmpfalse(l2)
+	block();
+	match('e');
+	asm_jmp(l1);
+	printf("L%d:\n", l2);
+}
+
+Para juntar as coisas agora, só temos que modificar "block" para reconhecer as palavras-chave IF e WHILE. Como de costume, expandimos a definição de um bloco como:
+
+	<block> ::= ( <statement> )*
+	<statement> ::= <if> | <while> | <assignment>
+	
+O código correspondente é:
+
+void block()
+{
+	int follow = 0;
+	
+	while (!follow) {
+		switch (look) {
+		  case 'i':
+		  	doif();
+		  	break;
+		  case 'w':
+		  	dowhile();
+		  	break;
+		  case 'e':
+		  case 'l':
+		  	follow = 1;
+		  	break;
+		  default:
+		  	assignment();
+		  	break;
+		}
+	}
+}
+
+Certo, adicione as rotinas dadas, compile e teste. Agora já é possível compilar versões de um caracter de qualquer uma das construções de controle. Está ficando muito bom!
+
+De fato, exceto pela limitação de um único caracter, temos uma versão completa de TINY. Eu a chamo, com muito orgulho de: TINY Versão 0.1!
+
+Análise Léxica
+--------------
+
+É claro que você sabe o que vem depois: Temos que converter o programa para que ele trate de palavras-chave multi-caracter, quebras de linha, e espaços em branco. Nós já passamos por tudo isto na parte 7. Vamos usar a técnica de análise distribuída que eu mostrei naquele capítulo. A implementação atual é um pouco diferente por causa da forma que eu vou tratar das quebras de linha.
+
+Para começar, vamos simplesmente permitir espaços em branco. Isto envolve apenas adicionar chamadas a "skipwhite" no fim das três rotinas, "getname", "getnum" e "match". Um chamada a "skipwhite" em "init" remove os espaços em branco iniciais. Podemos então entrar com um programa que é mais compreensível, como: "p vx b x=1 e."
+
+Depois, temos que tratar de quebras de linha. Isto é na verdade um processo de dois passos, já que o tratamento das quebras de linha é diferente nas versões de token de um só caracter e multi-caracter. Podemos eliminar algum trabalho fazendo os dois passos de uma só vez, mas eu acho que é mais garantido fazer uma coisa de cada vez.
+
+Insira a rotina:
+
+void newline()
+{
+	while (look == '\n') {
+		nextchar();
+		skipwhite();
+	}
+}
+
+Note que já vimos esta rotina antes mas numa forma diferente. Eu agora alterei o código para permitir múltiplas quebras de linha e linhas que só possuem espaços.
+
+O próximo passo é inserir a chamada a "newline" onde quer que seja permitido uma nova linha. Como eu já disse antes, isto pode ser muito diferente dependendo da linguagem. Em TINY, eu decidi que é possível colocar quebras de linha virtualmente em qualquer lugar. Isto significa que precisamos de chamadas a "newline" no INÍCIO (não no fim, como "skipwhite" das rotinas "getname", "getnum" e "match".
+
+Para rotinas que possuem laços while, como "topdecl", precisamos de uma chamada a "newline" no início da rotina e no fim de cada repetição. Desta forma podemos garantir que "newline" foi chamada no início de cada passagem do laço. Também é necessário adicionar "newline" antes dos testes diretos de "look", como em "factor" e "allocvar".
+
+Se você já fez tudo isto, teste o programa e verifique que ele realmente trata de espaços em branco e quebras de linha. Tente todas as possibilidades que vierem à sua monte. Se alguma delas não funcionar é possível que você tenha esquecido de algum "newline". Basta verificar em que construção ocorrereu o problema e procurar a mesma no código.
+
+Se tudo estiver correto, estamos prontos para tratar dos tokens multi-caracter e palavras-chave. Para começar, adicione as declarações adicionais (cópias quase idênticas da parte 7):
+
+#define MAXTOKEN 16
+#define KWLIST_SZ 9
+
+char *kwlist[KWLIST_SZ] = {"IF", "ELSE", "ENDIF", "WHILE", "ENDWHILE",
+			   "VAR", "BEGIN", "END", "PROGRAM"};
+/* lista de palavras-chave */
+
+char *kwcode = "ilewevbep";
+
+char token; /* código do token atual */
+char value[MAXTOKEN+1]; /* texto do token atual */
+
+Em seguida, adicione as três rotinas, também da parte 7:
+
+int lookup(char *s, char *list[], int size)
+{
+	int i;
+
+	for (i = 0; i < size; i++) {
+		if (strcmp(list[i], s) == 0)
+			return i;
+	}
+
+	return -1;
+}
+
+void scan()
+{
+        int kw;
+
+	getname();
+        kw = lookup(value, kwlist, KWLIST_SZ);
+        if (kw == -1)
+                token = 'x';
+        else
+                token = kwcode[kw];
+}
+
+void matchstring(char *s)
+{
+        if (strcmp(value, s) != 0)
+                expected(s);
+}
+
+Agora, nós temos um número grande de pequenas mudanças a serem feitas às rotinas restantes. Primeiro, temos que alterar a rotina "getname" para ser um procedimento, como fizemos na parte 7:
+
+void getname()
+{
+	int i;
+	
+	newline();
+	if (!isalpha(look))
+		expected("Name");
+	for (i = 0; isalnum(look) && i < MAXTOKEN; i++) {
+		value[i] = toupper(look);
+		nextchar();
+	}
+	value[i] = '\0';
+        token = 'x';
+        skipwhite();
+}
+
+Repare que esta rotina deixa seu resultado na variável global "value".
+
+Depois, temos que alterar cada referência a "getname" para refletir sua nova forma. Elas ocorrem em "factor", "assignment" e "decl":
+
+/* analisa e traduz um fator matemático */
+void factor()
+{
+        newline();
+	if (look == '(') {
+		match('(');
+		boolexpression();
+		match(')');
+	} else if (isalpha(look)) {
+		getname();
+		asm_loadvar(value[0]);
+	} else
+		asm_loadconst(getnum());
+}
+
+/* analisa e traduz um comando de atribuição */
+void assignment()
+{
+	char name;
+
+	name = value[0];
+	match('=');
+	boolexpression();
+	asm_store(name);
+}
+
+/* analisa e traduz uma declaração */
+void decl()
+{
+	newline();
+	for (;;) {
+		getname();
+	        allocvar(value[0]);
+                newline();
+	        if (look != ',')
+	        	break;
+	        match(',');
+	        newline();
+	}
+}
+
+(Repare que ainda estamos nos limitando a variáveis com nomes de uma só letra, então vamos usar apenas o primeiro caracter da string como uma saída fácil por enquanto.)
+
+Finalmente, temos que fazer as alterações para usar "token" ao invés de "look" como caracter de teste e chamar "scan" nos lugares apropriados. Na maioria, isto envolve remover chamadas a "match", ocasionalmente trocando chamadas de "match" por chamadas a "matchstring", e trocando chamadas a "newline" por chamadas a "scan". Aqui estão as rotinas afetadas:
+
+void doif()
+{
+	int l1, l2;
+	
+	boolexpression();
+	l1 = newlabel();
+	l2 = l1;
+	asm_jmpfalse(l1);
+	block();
+	if (token == 'l') {
+		l2 = newlabel();
+		asm_jmp(l2);
+		printf("L%d:\n", l1);
+		block();
+	}
+	printf("L%d:\n", l2);
+	matchstring("ENDIF");
+}
+
+void dowhile()
+{
+	int l1, l2;
+
+	l1 = newlabel();
+	l2 = newlabel();
+	printf("L%d:\n", l1);
+	boolexpression();
+	asm_jmpfalse(l2);
+	block();
+	matchstring("ENDWHILE");
+	asm_jmp(l1);
+	printf("L%d:\n", l2);
+}
+
+void block()
+{
+	int follow = 0;
+	
+	do {
+                scan();
+		switch (token) {
+		  case 'i':
+		  	doif();
+		  	break;
+		  case 'w':
+		  	dowhile();
+		  	break;
+		  case 'e':
+		  case 'l':
+		  	follow = 1;
+		  	break;
+		  default:
+		  	assignment();
+		  	break;
+		}
+	} while (!follow);
+}
+
+void topdecls()
+{
+        scan();
+        while (token != 'b') {
+                switch (token) {
+                  case 'v':
+                        decl();
+                        break;
+                  default:
+                        error("Unrecognized keyword.");
+                        expected("BEGIN");
+                        break;
+                }
+                scan();
+        }
+}
+
+void mainblock()
+{
+	matchstring("BEGIN");
+	prolog();
+        block();
+	matchstring("END");
+	epilog();
+}
+
+void prog()
+{
+	matchstring("PROGRAM");
+	header();
+        topdecls();
+        mainblock();
+	match('.');
+}
+
+void init()
+{
+	int i = 0;
+	
+	for (i = 0; i < VARTBL_SZ; i++)
+		vartbl[i] = ' ';
+	
+	nextchar();
+	scan();
+}
+
+Isto deve bastar. Se todas as alterações foram feitas corretamente, você deve agora estar compilando programas que parecem com programas mesmo! (Se você não fez todas as mudanças você mesmo, não se desespere. Uma listagem completa da forma final será dada depois.)
+
+Deu certo? Se deu, então já estamos em casa. De fato, com algumas pequenas exceções já temos um compilador usável. Ainda há algumas áreas que podem ser melhoradas.
+
+Nomes de Variáveis Multi-caracter
+---------------------------------
+
+Uma das coisas a melhorar é com relação à restrição de nomes de variáveis de apenas um caracter. Agora que podemos tratar de palavras-chave multi-caracter, isto começa a parecer uma restrição arbitrário e desnecessária. E na verdade é. Basicamente, a sua única virtude é que ela permite uma implementação trivial da tabela de símbolos. Mas isto é uma conveniência para o desenvolvedor do compilador, e deve ser eliminada.
+
+Já fizemos isto antes. Desta vez, como de costume, eu vou fazê-lo de uma forma um pouco diferente. Eu acho que a abordagem aqui mantém as coisas tão simples quanto possível.
+
+A forma natural de implementar uma tabela de símbolos é declarar uma estrutura (struct), e fazer da tabela de símbolos uma matriz destas estruturas. Porém, aqui não precisamos realmente de um campo de tipo (afinal, só existe um tipo de entrada até aqui), portanto só precisamos de uma matriz de símbolos. A vantagem é que podemos usar a rotina existente "lookup" para procurar na tabela de símbolos e também na lista de palavras-chave. No entando, mesmo quando precisarmos de mais campos poderíamos usar a mesma abordagem, simplesmente armazenando os outros campos em matrizes separadas.
+
+Certo, aqui estão as mudanças necessárias.  Primeiro adicione:
+
+int nsym; /* número de entradas na tabela de símbolos */
+
+Então remova a definição de "vartbl" e acrescente a nova tabela de símbolos:
+
+#define SYMTBL_SZ 1000
+char *symtbl[SYMTBL_SZ]; /* tabela de símbolos */
+
+Em seguida, alteramos a definição de "intable":
+
+int intable(char *name)
+{
+        if (lookup(name, symtbl, nsym) > 0)
+                return 1;
+        return 0;
+}
+
+Também precisamos de uma nova rotina, "addsymbol", que adiciona uma nova entrada à tabela de símbolos:
+
+void addsymbol(char *name)
+{
+        char *newsym;
+
+        if (intable(name)) {
+                fprintf(stderr, "Duplicated variable name: %s", name);
+                exit(1);
+        }
+
+        if (nsym >= SYMTBL_SZ) {
+                fatal("Symbol table full!");
+        }
+
+        newsym = (char *) malloc(sizeof(char) * (strlen(name) + 1));
+        if (newsym == NULL)
+                fatal("Out of memory!");
+
+        symtbl[nsym++] = newsym;
+}
+
+Esta rotina é chamada por "allocvar", repare também nas outras alterações:
+
+/* analisa e traduz uma declaração */
+void allocvar(char *name)
+{
+	int value = 0, signal = 1;
+
+        addsymbol(name);
+
+        newline();
+	if (look == '=') {
+		match('=');
+                newline();
+                if (look == '-') {
+                        match('-');
+                        signal = -1;
+                }
+		value = signal * getnum();
+	}	
+	
+        printf("%s:\tdw %d\n", name, value);
+}
+
+Finalmente, temos que alterar todas as rotinas que tratam o nome da variável como um caracter único. Elas incluem "asm_loadvar", "asm_store", "undefined" (apenas alteramos o tipo de "char" para "char *" e "%c" para "%s" nos printf's), "factor", "decl" (alteramos "value[0]" para "value"). Em "assignment" a mudança é um pouco diferente, mas nada complicada:
+
+/* analisa e traduz um comando de atribuição */
+void assignment()
+{
+	char name[MAXTOKEN+1];
+
+	strcpy(name, value);
+	match('=');
+	boolexpression();
+	asm_store(name);
+}
+
+Uma última alteração na rotina "init":
+
+void init()
+{
+	nsym = 0;
+
+	nextchar();
+	scan();
+}
+
+Isto deve bastar. Teste o compilador agora e verifique que é possível adicionar nomes de variáveis multi-caracter.
+
+Mais Operadores Relacionais
+---------------------------
+
+Ainda temos mais uma restrição de "caracter simples" para eliminar: a dos operadores relacionais. Alguns operadores relacionais são realmente caracteres únicos, mas outros requerem dois. Eles são "<=" e ">=". Eu também prefiro "<>" para diferente, ao invés de "#".
+
+Se você se lembrar, na parte 7 eu disse que a maneira convencional de lidar de operadores relacionais é incluí-los na lista de palavras-chave, e permitir que o analisador léxico os encontre. Mas novamente, para fazer isto teriamos que analisar léxicamente a expressão toda no processo, sendo que até aqui fomos capazes de limitar a análise léxica apenas no começo do comando.
+
+Eu mencionei então que ainda podemos nos livrar disto, já que os operadores relacionais são tão poucos e tão limitados em seu uso. É fácil tratar deles apenas como casos especiais e lidar com eles de uma forma ad hoc.
+
+As mudanças necessárias afetam apenas as rotina de geração de códigos "asm_relop" e "relation":
+
+/* analisa e traduz uma relação */
+void relation()
+{
+	char op;
+
+	expression();
+	if (isrelop(look)) {
+		op = look;
+		match(op); /* só para remover o operador do caminho */
+                if (op == '<') {
+                        if (look == '>') { /* <> */
+                                match('>');
+                                op = '#';
+                        } else if (look == '=') {
+                                match('=');
+                                op = 'L';
+                        }
+
+                } else if (op == '>' && look == '=') {
+                        match('=');
+                        op = 'G';
+                }
+		asm_push();
+		expression();
+		asm_popcompare();
+		asm_relop(op);
+	}
+}
+
+/* altera reg. primário (e flags, indiretamente) conforme a comparação */
+void asm_relop(char op)
+{
+	char *jump;
+        int l1, l2;
+
+        l1 = newlabel();
+        l2 = newlabel();
+
+	switch (op) {
+	  case '=': jump = "je"; break;
+	  case '#': jump = "jne"; break;
+	  case '<': jump = "jl"; break;
+	  case '>': jump = "jg"; break;
+	  case 'L': jump = "jle"; break;
+	  case 'G': jump = "jge"; break;
+	}
+
+	printf("\t%s L%d\n", jump, l1);
+	printf("\txor ax, ax\n");
+	printf("\tjmp L%d\n", l2);
+	printf("L%d:\n", l1);
+	printf("\tmov ax, -1\n");
+	printf("L%d:\n", l2);
+}
+
+(Repare que estou utilizando "G" e "L" para indicar os operadores ">=" e "<=" na passagem para "asm_relop". Repare também como é tratado o operador "<>".)
+
+Isto deve bastar. Agora é possível processar todo tipo de operador relacional. Faça alguns testes.
+
+Entrada/Saída
+-------------
+
+Agora nós temos uma linguagem completa e funcional, exceto por uma pequena omissão: não há como obter dados ou mostrá-los. Precisamos de entrada/saída.
+
+A convenção nos dias de hoje, estabelecida em C e continuada em Ada e Modula-2, é deixar os comandos de E/S fora da linguagem em si, e incluí-los na biblioteca de rotinas. Isto seria bom, exceto pelo fato de que até aqui, não temos como tratar de subrotinas. De qualquer forma, com esta abordagem você acaba encontrando o problema de listas de parâmetros de tamanho variável. Em Pascal, os comandos de E/S estão embutidos na linguagem porque eles são os únicos em que a lista de parâmetros pode ter um número variado de entradas. Em C, as funções "scanf" e "printf" requerem que uma string com o formato da entrada seja passada e a partir desta string é determinada a quantidade de parâmetros. Em Ada e Modula-2 precisamos usar a estranha (e LENTA!) abordagem de uma chamada separada para cada parâmetro.
+
+Eu prefiro a abordagem Pascal de colocar a E/S na própria linguagem, mesmo que não tenhamos que fazer isto.
+
+Como de costume, para isto precisamos de mais rotinas de geração de código. Por sinal estas são as mais fáceis, pois tudo o que temos que fazer é chamar as rotinas da biblioteca para fazer o trabalho:
+
+/* lê um valor para o registrador primário e armazena em variável */
+void asm_read()
+{
+	printf("\tcall READ\n");
+	asm_store(value);	
+}
+
+/* mostra valor do reg. primário */
+void asm_write()
+{
+	printf("\tcall WRITE\n");
+}
+
+A idéia é que READ carrega o valor de entrada em AX, e WRITE exibe o valor dele.
+
+Estas duas rotinas representam nosso primeiro encontro com a necessidade rotinas de biblioteca... os componentes de uma biblioteca de tempo de execução (RTL - Run Time Library). É claro, alguém (no caso, nós) deve escrever estas rotinas, mas elas não fazem parte do compilador em si. Repare que estas rotinas podem ser MUITO dependentes do sistema operacional. Eu vou colocar UMA versão destas rotinas para que você possa testar, se você estiver usando o DOS. É claro que não será a melhor das versões. É possível criar todo tipo de fantasia para estas coisas, por exemplo, exibir um prompt em READ para as entradas, e dar ao usuário uma nova chance se ele entrar com um valor inválido.
+
+Mas isto é certamente separado do projeto do compilador. Por enquanto vamos fazer de conta que possuimos uma biblioteca chamada TINYRTL.LIB (eu vou explicar como criar a biblioteca e suas rotinas num texto separado).  Para fazer uso dela, faça o seguinte quando for gerar o executável do programa:
+
+	TASM prog.asm
+	TLINK prog.obj,,,tinyrtl.lib
+
+Isto deve ser o suficiente. Agora, também devemos reconhecer os comandos de leitura e escrita. Podemos fazer isto adicionando mais duas palavras-chave a nossa lista:
+
+#define KWLIST_SZ 11
+
+char *kwlist[KWLIST_SZ] = {"IF", "ELSE", "ENDIF", "WHILE", "ENDWHILE",
+			   "READ", "WRITE", "VAR", "BEGIN", "END", "PROGRAM"};
+/* lista de palavras-chave */
+
+char *kwcode = "ileweRWvbep";
+
+(Repare como estou usando letras maiúsculas nos códigos para evitar conflitos com o "w" de "WHILE".)
+
+Em seguida, precisamos das rotinas para processar os comandos em si e sua lista de parâmetros:
+
+void doread()
+{
+	match('(');
+	for (;;) {
+		getname();
+		asm_read();
+		newline();
+		if (look != ',')
+			break;
+		match(',');
+	}
+	match(')');
+}
+
+void dowrite()
+{
+	match('(');
+	for (;;) {
+		expression();
+		asm_write();
+		newline();
+		if (look != ',')
+			break;
+		match(',');
+	}
+	match(')');
+}
+
+Finalmente, temos que expandir "block" para tratar dos novos comandos:
+
+void block()
+{
+	int follow = 0;
+	
+	do {
+                scan();
+		switch (token) {
+		  case 'i':
+		  	doif();
+		  	break;
+		  case 'w':
+		  	dowhile();
+		  	break;
+		  case 'R':
+		  	doread();
+		  	break;
+		  case 'w':
+		  	dowrite();
+		  	break;
+		  case 'e':
+		  case 'l':
+		  	follow = 1;
+		  	break;
+		  default:
+		  	assignment();
+		  	break;
+		}
+	} while (!follow);
+}
+
+Se você tentar montar o código gerado agora com as rotinas READ e WRITE vai obter uma mensagem de erro, dizendo que não encontrou tais rotinas no código. Como elas são rotinas externas (da biblioteca), precisamos avisar o montador a respeito disso, altere "header":
+
+void header()
+{
+	printf("\t.model small\n");
+	printf("\t.stack\n");
+	printf("\t.code\n");
+	printf("extrn READ:near, WRITE:near\n");
+        printf("PROG segment byte public\n");
+        printf("\tassume cs:PROG,ds:PROG,es:PROG,ss:PROG\n");
+}
+
+
+Isto é tudo o que precisa ser feito. AGORA temos uma linguagem!
+
+Conclusão
+---------
+
+Neste ponto, temos TINY completamente definida. Não é muita coisa... na verdade um compilador "de brinquedo". TINY só possui um tipo de dados e nenhuma subrotina... mas é uma linguagem completa e usável. Embora você não seja capaz de escrever um compilador usando TINY, ou fazer qualquer outra coisa seriamente, é possível escrever programas para ler algumas entradas, processar cálculos, e emitir algum resultado. Nada mal para um brinquedo.
+
+Mais importante, temos uma base firme na qual podemos construir outras extensões. Eu acho que você vai ficar feliz em saber isto: esta é a última vez que eu vou começar a construir um analisador do zero... de agora em diante eu pretendo apenas adicionar características a TINY até que ele se torne KISS. Bem, no futuro vamos precisar testar outras coisas com novas cópias do "berço", mas uma vez que tenhamos descobrido como fazer estas coisas, elas serão incorporadas em TINY.
+
+Quais características serão estas? Bem, pra começar precisaremos de procedimentos e funções. Então precisaremos tratar de tipos diferentes, incluindo matrizes, strings, e outras estruturas. Então temos que lidar com a idéia de ponteiros. Tudo isto será visto em capítulos posteriores.
+
+Até lá!
+
+Para referência, a listagem completa de TINY Versão 1.0 é mostrada abaixo:
+
+/*
+TINY Versão 1.0
+
+O código abaixo foi escrito por Felipo Soranz e é uma adaptação
+do código original em Pascal escrito por Jack W. Crenshaw em sua
+série "Let's Build a Compiler".
+
+Este código é de livre distribuição e uso.
+*/
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#define SYMTBL_SZ 1000
+#define KWLIST_SZ 11
+#define MAXTOKEN 16
+
+int lblcount; /* indica o rótulo atual */
+
+/* tabela de símbolos */
+char *symtbl[SYMTBL_SZ];
+int nsym; /* número de entradas atuais na tabela de símbolos */
+
+/* códigos e lista de palavras-chave */
+char kwcode[KWLIST_SZ+1] = "ileweRWvbep";
+char *kwlist[KWLIST_SZ] = {"IF", "ELSE", "ENDIF", "WHILE", "ENDWHILE",
+			   "READ", "WRITE", "VAR", "BEGIN", "END", "PROGRAM"};
+
+char look; /* O caracter lido "antecipadamente" (lookahead) */
+char token; /* código do token atual */
+char value[MAXTOKEN+1]; /* texto do token atual */
+
+/* PROTÓTIPOS */
+
+/* rotinas utilitárias */
+void init();
+void nextchar();
+void error(char *s);
+void fatal(char *s);
+void expected(char *s);
+void undefined(char *name);
+
+/* reconhecedores */
+int isaddop(char c);
+int ismulop(char c);
+int isorop(char c);
+int isrelop(char c);
+
+/* tratamento de símbolos */
+int lookup(char *s, char *list[], int size);
+int intable(char *name);
+void addsymbol(char *name);
+
+/* analisador léxico */
+void skipwhite();
+void newline();
+void match(char c);
+void getname();
+int getnum();
+void scan();
+void matchstring(char *s);
+
+/* rótulos */
+int newlabel();
+
+/* rotinas de geração de código */
+void asm_clear();
+void asm_negative();
+void asm_loadconst(int i);
+void asm_loadvar(char *name);
+void asm_push();
+void asm_popadd();
+void asm_popsub();
+void asm_popmul();
+void asm_popdiv();
+void asm_store(char *name);
+void asm_not();
+void asm_popand();
+void asm_popor();
+void asm_popxor();
+void asm_popcompare();
+void asm_relop(char op);
+void asm_jmp(int label);
+void asm_jmpfalse(int label);
+void asm_read();
+void asm_write();
+void header();
+void prolog();
+void epilog();
+
+/* rotinas do analisador sintático */
+
+/* expressões aritméticas */
+void factor();
+void negfactor();
+void firstfactor();
+void multiply();
+void divide();
+void term1();
+void term();
+void firstterm();
+void add();
+void subtract();
+void expression();
+
+/* expressões booleanas e relações */
+void relation();
+void notfactor();
+void boolterm();
+void boolor();
+void boolxor();
+void boolexpression();
+
+/* bloco, estruturas de controle e comandos */
+void assignment();
+void doif();
+void dowhile();
+void doread();
+void dowrite();
+void block();
+
+/* declarações */
+void allocvar(char *name);
+void decl();
+void topdecls();
+
+/* programa principal */
+void mainblock();
+void prog();
+
+/* PROGRAMA PRINCIPAL */
+
+int main()
+{
+	init();
+	prog();
+
+	if (look != '\n')
+		fatal("Unexpected data after \'.\'");
+
+	return 0;
+}
+
+/* lê próximo caracter da entrada em lookahead */
+void nextchar()
+{
+	look = getchar();
+}
+
+/* imprime mensagem de erro sem sair */
+void error(char *s)
+{
+	fprintf(stderr, "Error: %s\n", s);
+}
+
+/* imprime mensagem de erro e sai */
+void fatal(char *s)
+{
+	error(s);
+	exit(1);
+}
+
+/* mensagem de erro para string esperada */
+void expected(char *s)
+{
+	fprintf(stderr, "Error: %s expected\n", s);
+	exit(1);
+}
+
+/* avisa a respeito de um identificador desconhecido */
+void undefined(char *name)
+{
+	int i;
+	fprintf(stderr, "Error: Undefined identifier %s\n", name);
+	fprintf(stderr, "Symbol table:\n");
+	for (i = 0; i < nsym; i++)
+		fprintf(stderr, "%d: %s\n", i, symtbl[i]);
+	exit(1);
+}
+
+/* testa operadores de adição */
+int isaddop(char c)
+{
+	return (c == '+' || c == '-');
+}
+
+/* testa operadores de multiplicação */
+int ismulop(char c)
+{
+	return (c == '*' || c == '/');
+}
+
+/* testa operadores OU */
+int isorop(char c)
+{
+	return (c == '|' || c == '~');
+}
+
+/* testa operadores relacionais */
+int isrelop(char c)
+{
+	return (strchr("=#<>", c) != NULL);
+}
+
+/* pula caracteres em branco */
+void skipwhite()
+{
+	while (look == ' ' || look == '\t')
+		nextchar();
+}
+
+/* pula quebras de linha e linhas vazias*/
+void newline()
+{
+	while (look == '\n') {
+		nextchar();
+		skipwhite();
+	}
+}
+
+/* compara lookahead com caracter */
+void match(char c)
+{
+	char s[2];
+
+	newline();
+	if (look == c)
+		nextchar();
+	else {
+		s[0] = c; /* uma conversao rápida (e feia) */
+		s[1] = '\0'; /* de um caracter em string */
+		expected(s);
+	}
+	skipwhite();
+}
+
+/* procura por string em tabela,
+   usado para procurar palavras-chave e símbolos */
+int lookup(char *s, char *list[], int size)
+{
+	int i;
+
+	for (i = 0; i < size; i++) {
+		if (strcmp(list[i], s) == 0)
+			return i;
+	}
+
+	return -1;
+}
+
+/* verifica se "name" consta na tabela de símbolos */
+int intable(char *name)
+{
+	if (lookup(name, symtbl, nsym) < 0)
+		return 0;
+	return 1;
+}
+
+/* adiciona novo identificador à tabela de símbolos */
+void addsymbol(char *name)
+{
+	char *newsym;
+
+	if (intable(name)) {
+		fprintf(stderr, "Duplicated variable name: %s", name);
+		exit(1);
+	}
+
+	if (nsym >= SYMTBL_SZ) {
+		fatal("Symbol table full!");
+	}
+
+	newsym = (char *) malloc(sizeof(char) * (strlen(name) + 1));
+	if (newsym == NULL)
+		fatal("Out of memory!");
+
+	strcpy(newsym, name);
+
+	symtbl[nsym++] = newsym;
+}
+
+/* analisa e traduz um nome (identificador ou palavra-chave) */
+void getname()
+{
+	int i;
+
+	newline();
+	if (!isalpha(look))
+		expected("Name");
+	for (i = 0; isalnum(look) && i < MAXTOKEN; i++) {
+		value[i] = toupper(look);
+		nextchar();
+	}
+	value[i] = '\0';
+	token = 'x';
+	skipwhite();
+}
+
+/* analisa e traduz um número inteiro */
+int getnum()
+{
+	int i;
+
+	i = 0;
+
+	newline();
+	if (!isdigit(look))
+		expected("Integer");
+	while (isdigit(look)) {
+		i *= 10;
+		i += look - '0';
+		nextchar();
+	}
+	skipwhite();
+
+	return i;
+}
+
+/* analisador léxico. analisa identificador ou palavra-chave */
+void scan()
+{
+	int kw;
+
+	getname();
+	kw = lookup(value, kwlist, KWLIST_SZ);
+	if (kw == -1)
+		token = 'x';
+	else
+		token = kwcode[kw];
+}
+
+/* compara string com texto do token atual */
+void matchstring(char *s)
+{
+	if (strcmp(value, s) != 0)
+		expected(s);
+}
+
+/* gera um novo rótulo */
+int newlabel()
+{
+	return lblcount++;
+}
+
+/* ROTINAS DE GERAÇÃO DE CÓDIGO */
+
+/* zera o registrador primário */
+void asm_clear()
+{
+	printf("\txor ax, ax\n");
+}
+
+/* negativa o reg. primário */
+void asm_negative()
+{
+	printf("\tneg ax\n");
+}
+
+/* carrega uma constante numérica no reg. prim. */
+void asm_loadconst(int i)
+{
+	printf("\tmov ax, %d\n", i);
+}
+
+/* carrega uma variável no reg. prim. */
+void asm_loadvar(char *name)
+{
+	if (!intable(name))
+		undefined(name);
+	printf("\tmov ax, word ptr %s\n", name);
+}
+
+/* coloca reg. prim. na pilha */
+void asm_push()
+{
+	printf("\tpush ax\n");
+}
+
+/* adiciona o topo da pilha ao reg. prim. */
+void asm_popadd()
+{
+	printf("\tpop bx\n");
+	printf("\tadd ax, bx\n");
+}
+
+/* subtrai o reg. prim. do topo da pilha */
+void asm_popsub()
+{
+	printf("\tpop bx\n");
+	printf("\tsub ax, bx\n");
+	printf("\tneg ax\n");
+}
+
+/* multiplica o topo da pilha pelo reg. prim. */
+void asm_popmul()
+{
+	printf("\tpop bx\n");
+	printf("\tmul bx\n");
+}
+
+/* divide o topo da pilha pelo reg. prim. */
+void asm_popdiv()
+{
+	printf("\tpop bx\n");
+	printf("\txchg ax, bx\n");
+	printf("\tcwd\n");
+	printf("\tdiv bx\n");
+}
+
+/* armazena reg. prim. em variável */
+void asm_store(char *name)
+{
+	if (!intable(name))
+		undefined(name);
+	printf("\tmov word ptr %s, ax\n", name);
+}
+
+/* inverte reg. prim. */
+void asm_not()
+{
+	printf("\tnot ax\n");
+}
+
+/* "E" do topo da pilha com reg. prim. */
+void asm_popand()
+{
+	printf("\tpop bx\n");
+	printf("\tand ax, bx\n");
+}
+
+/* "OU" do topo da pilha com reg. prim. */
+void asm_popor()
+{
+	printf("\tpop bx\n");
+	printf("\tor ax, bx\n");
+}
+
+/* "OU-exclusivo" do topo da pilha com reg. prim. */
+void asm_popxor()
+{
+	printf("\tpop bx\n");
+	printf("\txor ax, bx\n");
+}
+
+/* compara topo da pilha com reg. prim. */
+void asm_popcompare()
+{
+	printf("\tpop bx\n");
+	printf("\tcmp bx, ax\n");
+}
+
+/* altera reg. primário (e flags, indiretamente) conforme a comparação */
+void asm_relop(char op)
+{
+	char *jump;
+	int l1, l2;
+
+	l1 = newlabel();
+	l2 = newlabel();
+
+	switch (op) {
+	  case '=': jump = "je"; break;
+	  case '#': jump = "jne"; break;
+	  case '<': jump = "jl"; break;
+	  case '>': jump = "jg"; break;
+	  case 'L': jump = "jle"; break;
+	  case 'G': jump = "jge"; break;
+	}
+
+	printf("\t%s L%d\n", jump, l1);
+	printf("\txor ax, ax\n");
+	printf("\tjmp L%d\n", l2);
+	printf("L%d:\n", l1);
+	printf("\tmov ax, -1\n");
+	printf("L%d:\n", l2);
+}
+
+/* desvio incondicional */
+void asm_jmp(int label)
+{
+	printf("\tjmp L%d\n", label);
+}
+
+/* desvio se falso (0) */
+void asm_jmpfalse(int label)
+{
+	printf("\tjz L%d\n", label);
+}
+
+/* lê um valor para o registrador primário e armazena em variável */
+void asm_read()
+{
+	printf("\tcall READ\n");
+	asm_store(value);
+}
+
+/* mostra valor do reg. primário */
+void asm_write()
+{
+	printf("\tcall WRITE\n");
+}
+
+/* cabeçalho do código assembly */
+void header()
+{
+	printf(".model small\n");
+	printf(".stack\n");
+	printf(".code\n");
+	printf("extrn READ:near, WRITE:near\n");
+	printf("PROG segment byte public\n");
+	printf("\tassume cs:PROG,ds:PROG,es:PROG,ss:PROG\n");
+}
+
+/* prólogo da rotina principal */
+void prolog()
+{
+	printf("MAIN:\n");
+	printf("\tmov ax, PROG\n");
+	printf("\tmov ds, ax\n");
+	printf("\tmov es, ax\n");
+}
+
+/* epílogo da rotina principal */
+void epilog()
+{
+	printf("\tmov ax,4C00h\n");
+	printf("\tint 21h\n");
+	printf("PROG ends\n");
+	printf("\tend MAIN\n");
+}
+
+/* analisa e traduz um fator matemático */
+void factor()
+{
+	newline();
+	if (look == '(') {
+		match('(');
+		boolexpression();
+		match(')');
+	} else if (isalpha(look)) {
+		getname();
+		asm_loadvar(value);
+	} else
+		asm_loadconst(getnum());
+}
+
+/* analisa e traduz um fator negativo */
+void negfactor()
+{
+	match('-');
+	if (isdigit(look))
+		asm_loadconst(-getnum());
+	else {
+		factor();
+		asm_negative();
+	}
+}
+
+/* analisa e traduz um fator inicial */
+void firstfactor()
+{
+	newline();
+	switch (look) {
+	  case '+':
+		match('+');
+		factor();
+		break;
+	  case '-':
+		negfactor();
+		break;
+	  default:
+		factor();
+		break;
+	}
+}
+
+/* reconhece e traduz uma multiplicação */
+void multiply()
+{
+	match('*');
+	factor();
+	asm_popmul();
+}
+
+/* reconhece e traduz uma divisão */
+void divide()
+{
+	match('/');
+	factor();
+	asm_popdiv();
+}
+
+/* código comum usado por "term" e "firstterm" */
+void term1()
+{
+	newline();
+	while (ismulop(look))  {
+		asm_push();
+		switch (look) {
+		  case '*':
+			multiply();
+			break;
+		  case '/':
+			divide();
+			break;
+		}
+		newline();
+	}
+}
+
+/* analisa e traduz um termo matemático */
+void term()
+{
+	factor();
+	term1();
+}
+
+/* analisa e traduz um termo inicial */
+void firstterm()
+{
+	firstfactor();
+	term1();
+}
+
+/* reconhece e traduz uma adição */
+void add()
+{
+	match('+');
+	term();
+	asm_popadd();
+}
+
+
+
+/* reconhece e traduz uma subtração*/
+void subtract()
+{
+	match('-');
+	term();
+	asm_popsub();
+}
+
+/* analisa e traduz uma expressão matemática */
+void expression()
+{
+	firstterm();
+	newline();
+	while (isaddop(look))  {
+		asm_push();
+		switch (look) {
+		  case '+':
+			add();
+			break;
+		  case '-':
+			subtract();
+			break;
+		}
+		newline();
+	}
+}
+
+/* analisa e traduz uma relação */
+void relation()
+{
+	char op;
+
+	expression();
+	if (isrelop(look)) {
+		op = look;
+		match(op); /* só para remover o operador do caminho */
+		if (op == '<') {
+			if (look == '>') { /* <> */
+				match('>');
+				op = '#';
+			} else if (look == '=') {
+				match('=');
+				op = 'L';
+			}
+
+		} else if (op == '>' && look == '=') {
+			match('=');
+			op = 'G';
+		}
+		asm_push();
+		expression();
+		asm_popcompare();
+		asm_relop(op);
+	}
+}
+
+/* analisa e traduz um fator booleano com NOT inicial */
+void notfactor()
+{
+	if (look == '!') {
+		match('!');
+		relation();
+		asm_not();
+	} else
+		relation();
+}
+
+/* analisa e traduz um termo booleano */
+void boolterm()
+{
+	notfactor();
+	newline();
+	while (look == '&') {
+		asm_push();
+		match('&');
+		notfactor();
+		asm_popand();
+		newline();
+	}
+}
+
+/* reconhece e traduz um "OR" */
+void boolor()
+{
+	match('|');
+	boolterm();
+	asm_popor();
+}
+
+/* reconhece e traduz um "xor" */
+void boolxor()
+{
+	match('~');
+	boolterm();
+	asm_popxor();
+}
+
+/* analisa e traduz uma expressão booleana */
+void boolexpression()
+{
+	boolterm();
+	newline();
+	while (isorop(look)) {
+		asm_push();
+		switch (look) {
+		  case '|':
+		  	boolor();
+		  	break;
+		  case '~':
+		  	boolxor();
+		  	break;
+		}
+		newline();
+	}
+}
+
+/* analisa e traduz um comando de atribuição */
+void assignment()
+{
+	char name[MAXTOKEN+1];
+
+	strcpy(name, value);
+	match('=');
+	boolexpression();
+	asm_store(name);
+}
+
+/* analiza e traduz um comando IF-ELSE-ENDIF */
+void doif()
+{
+	int l1, l2;
+
+	boolexpression();
+	l1 = newlabel();
+	l2 = l1;
+	asm_jmpfalse(l1);
+	block();
+	if (token == 'l') {
+		l2 = newlabel();
+		asm_jmp(l2);
+		printf("L%d:\n", l1);
+		block();
+	}
+	printf("L%d:\n", l2);
+	matchstring("ENDIF");
+}
+
+/* analiza e traduz um comando WHILE-ENDWHILE */
+void dowhile()
+{
+	int l1, l2;
+
+	l1 = newlabel();
+	l2 = newlabel();
+	printf("L%d:\n", l1);
+	boolexpression();
+	asm_jmpfalse(l2);
+	block();
+	matchstring("ENDWHILE");
+	asm_jmp(l1);
+	printf("L%d:\n", l2);
+}
+
+/* analiza e traduz um comando READ */
+void doread()
+{
+	match('(');
+	for (;;) {
+		getname();
+		asm_read();
+		newline();
+		if (look != ',')
+			break;
+		match(',');
+	}
+	match(')');
+}
+
+/* analiza e traduz um comando WRITE */
+void dowrite()
+{
+	match('(');
+	for (;;) {
+		expression();
+		asm_write();
+		newline();
+		if (look != ',')
+			break;
+		match(',');
+	}
+	match(')');
+}
+
+/* analiza e traduz um bloco de comandos */
+void block()
+{
+	int follow = 0;
+
+	do {
+		scan();
+		switch (token) {
+		  case 'i':
+		  	doif();
+		  	break;
+		  case 'w':
+		  	dowhile();
+		  	break;
+		  case 'R':
+		  	doread();
+		  	break;
+		  case 'W':
+		  	dowrite();
+		  	break;
+		  case 'e':
+		  case 'l':
+		  	follow = 1;
+		  	break;
+		  default:
+		  	assignment();
+		  	break;
+		}
+	} while (!follow);
+}
+
+/* aloca memória para uma declaração de variável (+inicializador) */
+void allocvar(char *name)
+{
+	int value = 0, signal = 1;
+
+	addsymbol(name);
+
+	newline();
+	if (look == '=') {
+		match('=');
+		newline();
+		if (look == '-') {
+			match('-');
+			signal = -1;
+		}
+		value = signal * getnum();
+	}
+
+	printf("%s:\tdw %d\n", name, value);
+}
+
+/* analisa e traduz uma declaração */
+void decl()
+{
+	for (;;) {
+		getname();
+		allocvar(value);
+		newline();
+		if (look != ',')
+			break;
+		match(',');
+	}
+}
+
+/* analisa e traduz declarações */
+void topdecls()
+{
+	scan();
+	while (token != 'b') {
+		switch (token) {
+		  case 'v':
+			decl();
+			break;
+		  default:
+			error("Unrecognized keyword.");
+			expected("BEGIN");
+			break;
+		}
+		scan();
+	}
+}
+
+/* analisa e traduz o bloco principal do programa*/
+void mainblock()
+{
+	matchstring("BEGIN");
+	prolog();
+	block();
+	matchstring("END");
+	epilog();
+}
+
+/* analisa e traduz um programa TINY */
+void prog()
+{
+	matchstring("PROGRAM");
+	header();
+	topdecls();
+	mainblock();
+	match('.');
+}
+
+/* inicialização do compilador */
+void init()
+{
+	nsym = 0;
+
+	nextchar();
+	scan();
+}
+
+Copyright (C) 1989 Jack W. Crenshaw. Todos os direitos reservados.
+Tradução e adaptação: Felipo Soranz (25/05/2002)
