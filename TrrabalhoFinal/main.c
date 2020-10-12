@@ -3,7 +3,8 @@
 
 int main(){
 	init();
-	expression();
+	assignment();
+	if(lookahead !='\n')expected("New Line");
 
 	return 0;
 }

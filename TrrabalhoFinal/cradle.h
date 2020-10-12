@@ -64,6 +64,16 @@ void term();
 void factor();
 
 /*
+*@brief verifica se o identificador analisado é a assinatura de uma função ou uma variável(ele faz isso lelndo o próximo caractere e verificando se ele é '(' ou não)
+*/
+void ident();
+
+/*
+*@brief lê um caractere, verifica se o caractere seguinte é o sinal de atribuição, em caso positivo traduz a expressão.
+*/
+void assignment();
+
+/*
 *@brief verifica se o caractere analisado é um operador de soma ou subtração
 */
 int isAddOp(char c);
