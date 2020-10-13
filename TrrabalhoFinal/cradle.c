@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <stdarg.h>
 #include <ctype.h>
 
@@ -11,7 +12,7 @@ void init(){
 }
 
 void other(){
-	emit("# %c", getName());
+	//emit("# %c", getName());
 }
 
 void programa(){
@@ -61,7 +62,7 @@ void block(int exitLabel){
 }
 
 void newLine(){
-    if (look == '\n')nextChar();
+    if (lookahead == '\n')nextChar();
 }
 
 int newLabel(){
@@ -151,7 +152,7 @@ void doFor(){
 	l1 = newLabel();
 	l2 = newLabel();
 	
-	name = getName();
+	getName();
 	match('=');
 
 	expression();
@@ -193,8 +194,37 @@ void doDo(){
 	emit("POP CX");
 }
 
+int lookup(char *s, char *list[], int size){
+	int i;
+	for (i=0; i < size; i++){
+		if (strcmp(list[i], s) == 0)return i;
+	}
+	return -1;
+}
+
+void scan(){
+	int kw;
+	while(lookahead == '\n'){
+		newLine();
+	}
+	if(isalpha(lookahead))getName();
+	else if(isdigit(lookahead))getNum();
+	else if(isOp(lookahead))getOp();
+	else{
+		value[0] = lookahead;
+		value[1] = '\0';
+		token = TK_OPERATOR;
+		nextChar();
+	}
+	skipWhite();
+}
+
 void nextChar(){
 	lookahead = getchar();
+}
+
+void skipWhite(){
+	while(lookahead == ' ' || lookahead == '\t')nextChar();
 }
 
 void error(char *fmt, ...){
@@ -234,26 +264,43 @@ void match(char c){
 	nextChar();
 }
 
-char getName(){
-	char identifierName;
+void getOp(){
+	int i;
+	if (!isOp(lookahead))expected("Operator");
+	for (i = 0; isOp(lookahead) && i < MAX_OP; i++){
+		value[i] = lookahead;
+		nextChar();
+	}
+	value[i] = '\0';
+	token = TK_OPERATOR;
+}
+
+void getName(){
+	int i,kw;
 
 	if(!isalpha(lookahead)) expected("Identifier");
 
-	identifierName = toupper(lookahead);
-	nextChar();
-
-	return identifierName;
+	for(i=0;isalnum(lookahead)&& i<MAX_NAME;i++){
+		value[i] = toupper(lookahead);
+		nextChar();	
+	}
+	value[i] = '\0';
+	kw = lookup(value, kwlist, KWLIST_SZ);
+	if(kw == -1)token = TK_IDENT;
+	else token = kw;
 }
 
-char getNum(){
-	char n;
+void getNum(){
+	int i;
 
-	if(!isdigit(lookahead)) expected("Digit");
+	if(!isdigit(lookahead)) expected("Integer");
 
-	n = lookahead;
-	nextChar();
-
-	return n;
+	for(i=0;isdigit(lookahead)&& i<MAX_NUM;i++){
+		value[i] = lookahead;
+		nextChar();	
+	}
+	value[i] = '\0';
+	token = TK_NUMBER;
 }
 
 int getBoolean(){
@@ -320,7 +367,7 @@ void factor(){
 		match(')');
 	}
 	else if(isalpha(lookahead)) ident();
-	else emit("MOV AX, %c", getNum());
+	//else emit("MOV AX, %c", getNum());
 	
 }
 
@@ -328,17 +375,17 @@ void signedFactor(){
 	if(lookahead == '+')nextChar();
 	if(lookahead == '-'){
 		nextChar();
-		if(isdigit(lookahead))emit("MOV AX, - %c",getNum());
+		/*if(isdigit(lookahead))emit("MOV AX, - %c",getNum());
 		else{
 			factor();
 			emit("NEG AX");
-		}
+		}*/
 	}else factor();
 }
 
 void ident(){
 	char name;
-	name = getName();
+	getName();
 	if(lookahead == '('){
 		match('(');
 		match(')');
@@ -348,7 +395,7 @@ void ident(){
 
 void assignment(){
 	char name;
-	name = getName();
+	getName();
 	match('=');
 	boolExpression();
 	emit("MOV [%c], AX",name);
@@ -432,6 +479,10 @@ void boolXor(){
 	boolTerm();
 	emit("POP BX");
 	emit("XOR AX, BX");
+}
+
+int isOp(char c){
+	return (strchr("+-*/<>:=", c) != NULL);
 }
 
 int isRelOp(char c){
