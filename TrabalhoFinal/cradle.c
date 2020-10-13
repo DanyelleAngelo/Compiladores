@@ -377,6 +377,7 @@ void relation(){
 
 void boolExpression(){
 	boolTerm();
+	
 	while(isOrOp(lookahead)){
 		emit("PUSH AX");
 		switch(lookahead){
