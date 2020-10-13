@@ -1,3 +1,4 @@
+#include <string.h>
 #include <stdio.h>
 #include "cradle.h"
 
@@ -7,25 +8,24 @@ int main(){
 	do{
 		scan();
 		switch(token){
-			case TK_IDENT:
+			case 'x':
 				printf("Ident: ");
 				break;
-			case TK_NUMBER:
+			case '#':
 				printf("Number: ");
 				break;
-			case TK_OPERATOR:
-				printf("Operator: ");
-				break;
-			case KW_IF:
-			case KW_ELSE:
-			case KW_ENDIF:
-			case KW_END:
+			case 'i':
+			case 'l':
+			case 'e':
 				printf("Keyword: ");
+				break;
+			default:
+				printf("Operator: ");
 				break;
 		}
 		printf("%s\n",value);
 		if(value[0] == '\n')newLine();
-	}while(token!= KW_END);
+	}while(strcmp(value, "END") == 0);
 
 	return 0;
 }

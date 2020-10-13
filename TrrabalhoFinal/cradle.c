@@ -213,7 +213,7 @@ void scan(){
 	else{
 		value[0] = lookahead;
 		value[1] = '\0';
-		token = TK_OPERATOR;
+		token = '?';
 		nextChar();
 	}
 	skipWhite();
@@ -272,7 +272,8 @@ void getOp(){
 		nextChar();
 	}
 	value[i] = '\0';
-	token = TK_OPERATOR;
+	if(strlen(value)==1)token  = value[0];
+	else token = '?';
 }
 
 void getName(){
@@ -286,8 +287,8 @@ void getName(){
 	}
 	value[i] = '\0';
 	kw = lookup(value, kwlist, KWLIST_SZ);
-	if(kw == -1)token = TK_IDENT;
-	else token = kw;
+	if(kw == -1)token = 'x';
+	else token = kwcode[kw];
 }
 
 void getNum(){
@@ -300,7 +301,7 @@ void getNum(){
 		nextChar();	
 	}
 	value[i] = '\0';
-	token = TK_NUMBER;
+	token = '#';
 }
 
 int getBoolean(){

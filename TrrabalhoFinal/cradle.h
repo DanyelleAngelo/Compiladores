@@ -4,19 +4,19 @@
 #define MAX_NAME 20
 #define MAX_TOKEN 300
 #define MAX_NUM 30
-#define MAX_OP
+#define MAX_OP 2
 #define SYMTBL_SZ 1000
 #define KWLIST_SZ 4
 
 char lookahead;
 int labelCount; 
-int token;
+char token;
 char value[MAX_TOKEN+1];
 
 char *symtbl[SYMTBL_SZ];
 char *kwlist[KWLIST_SZ] = {"IF", "ELSE", "ENDIF", "END"};
-enum {KW_IF,KW_ELSE,KW_ENDIF,KW_END,TK_IDENT,TK_NUMBER, TK_OPERATOR };
 
+const char *kwcode = "ilee";
 /*
 *@brief inicia o compilador
 */
