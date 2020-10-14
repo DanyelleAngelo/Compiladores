@@ -6,31 +6,40 @@
 
 #include "cradle.h"
 
+char *symtbl[SYMTBL_SZ];
+char *kwlist[KWLIST_SZ] = {"IF", "ELSE", "ENDIF", "END"};
+const char *kwcode = "ilee";
+
 void init(){
 	labelCount =0;
 	nextChar();
+	skipWhite();
 }
 
 void other(){
-	//emit("# %c", getName());
+	//printf("# %c", getName());
+}
+
+void condition(){
+	printf("\t## condition ##\n");
 }
 
 void programa(){
-	block(-1);
-	if(lookahead != 'e')expected("End");
-	emit("END");
+	block();
+	matchstring("END");
+	printf("\tint 2h\n");
 }
 
-void block(int exitLabel){
+void block(){
 	int follow = 0;
 
-	while(!follow){
-		newLine();
-		switch(lookahead){
+	do{
+		scan();
+		switch(token){
 			case 'i':
-				doIf(exitLabel);
+				doIf();
 				break;
-			case 'w':
+			/*case 'w':
 				doWhile();
 				break;
 			case 'p':
@@ -47,22 +56,22 @@ void block(int exitLabel){
 				break;
 			case 'b':
 				doBreak(exitLabel);
-				break;
+				break;*/
 			case 'e':
 			case 'l':
-			case 'u':
+			//case 'u':
 				follow = 1;
 				break;
 			default:
 				assignment();
 				break;
 		}
-		newLine();
-	}
+	}while(!follow);
 }
 
 void newLine(){
     if (lookahead == '\n')nextChar();
+    skipWhite();
 }
 
 int newLabel(){
@@ -73,33 +82,30 @@ int postLabel(int lbl){
 	printf("L%d:\n", lbl);
 }
 
-void doBreak(int exitLabel){
+void doBreak(){
 	match('b');
 
-	if(exitLabel == -1 )fatal("No loop to break from");
-	emit("JMP L%d",exitLabel);
+	//if(exitLabel == -1 )fatal("No loop to break from");
+	//printf("JMP L%d",exitLabel);
 }
 
-void doIf(int exitLabel){
+void doIf(){
 	int l1,l2;
 
-	match('i');
-	boolExpression();
-	l1 = newLabel();//emite um rótulo para o comando
+	condition();
+	l1 = newLabel();//printfe um rótulo para o comando
 	l2 = l1;
 	
-	emit("JZ L%d",l1);
-	block(exitLabel);
-	if(lookahead == 'l'){//l = else
-		match('l');
+	printf("\tjz L%d\n", l1);
+	block();
+	if(token == 'l'){//l = else
 		l2 = newLabel();
-		emit("JMP L%d",l2);
-		postLabel(l1);
-		block(exitLabel);
+		printf("\tjmp L%d\n", l2);
+		printf("L%d:\n", l1);
+		block();
 	}
-	match('e');
-	postLabel(l2);
-
+	printf("L%d:\n", l2);
+	matchstring("ENDIF");
 }
 
 void doWhile(){
@@ -110,10 +116,10 @@ void doWhile(){
 	l2 = newLabel();
 	postLabel(l1);
 	boolExpression();
-	emit("JZ L%d",l2);
+	printf("JZ L%d",l2);
 	block(l2);
 	match('e');
-	emit("JMP L%d",l1);
+	printf("JMP L%d",l1);
 	postLabel(l2);
 }
 
@@ -126,7 +132,7 @@ void doLoop(){
 	 postLabel(l1);
 	 block(l2);
 	 match('e');
-	 emit("JMP L%d",l1);
+	 printf("JMP L%d",l1);
 	 postLabel(l2);
 }
 
@@ -140,7 +146,7 @@ void doRepeat(){
 	block(l2);
 	match('u');
 	boolExpression();
-	emit("JZ L%d",l1);
+	printf("JZ L%d",l1);
 	postLabel(l2);
 }
 
@@ -156,24 +162,24 @@ void doFor(){
 	match('=');
 
 	expression();
-	emit("DEC AX");
-	emit("MOV [%c], AX",name);
+	printf("DEC AX");
+	printf("MOV [%c], AX",name);
 
 	expression();
-	emit("PUSH AX");
+	printf("PUSH AX");
 	postLabel(l1);
-	emit("MOV AX, [%c]",name);
-	emit("INC AX");
-	emit("MOV [%c], AX",name);
-	emit("POP BX");
-	emit("PUSH BX");
-	emit("CMP AX, BX");
-	emit("JG L%d",l2);
+	printf("MOV AX, [%c]",name);
+	printf("INC AX");
+	printf("MOV [%c], AX",name);
+	printf("POP BX");
+	printf("PUSH BX");
+	printf("CMP AX, BX");
+	printf("JG L%d",l2);
 	block(l2);
 	match('e');
-	emit("JMP L%d",l1);
+	printf("JMP L%d",l1);
 	postLabel(l2);
-	emit("POP AX");
+	printf("POP AX");
 }
 
 void doDo(){
@@ -183,15 +189,15 @@ void doDo(){
 	l1 = newLabel();
 	l2 = newLabel();
 	expression();
-	emit("MOV CX, AX");
+	printf("MOV CX, AX");
 	postLabel(l1);
-	emit("PUSH CX");
+	printf("PUSH CX");
 	block(l2);
-	emit("POP CX");
-	emit("LOOP L%d",l1);
-	emit("PUSH CX");
+	printf("POP CX");
+	printf("LOOP L%d",l1);
+	printf("PUSH CX");
 	postLabel(l2);
-	emit("POP CX");
+	printf("POP CX");
 }
 
 int lookup(char *s, char *list[], int size){
@@ -204,19 +210,12 @@ int lookup(char *s, char *list[], int size){
 
 void scan(){
 	int kw;
-	while(lookahead == '\n'){
-		newLine();
-	}
-	if(isalpha(lookahead))getName();
-	else if(isdigit(lookahead))getNum();
-	else if(isOp(lookahead))getOp();
-	else{
-		value[0] = lookahead;
-		value[1] = '\0';
-		token = '?';
-		nextChar();
-	}
-	skipWhite();
+	
+	getName();
+	
+	kw = lookup(value, kwlist,KWLIST_SZ);
+	if(kw == -1)token = 'x';
+    else token = kwcode[kw];
 }
 
 void nextChar(){
@@ -227,41 +226,33 @@ void skipWhite(){
 	while(lookahead == ' ' || lookahead == '\t')nextChar();
 }
 
-void error(char *fmt, ...){
-	va_list args;
-	fputs("Error: ", stderr);
-	va_start(args,fmt);
-    vfprintf(stderr, fmt, args);
-	va_end(args);
-
-	fputc('\n',stderr);
+void error(char *s){
+	fprintf(stderr, "Error: %s\n", s);
 }
 
-void fatal(char *fmt, ...){
-	va_list args;
-
-	fputs("Error: ", stderr);
-	va_start(args,fmt);
-	vfprintf(stderr,fmt,args);
-	va_end(args);
-	fputc('\n',stderr);
+void fatal(char *s){
+	error(s);
 	exit(1);
 }
 
-void expected(char *fmt, ...){
-	va_list args;
-	fputs("Error: ", stderr);
-	va_start(args, fmt);
-	vfprintf(stderr,fmt,args);
-	va_end(args);
-	fputs(" expected!\n",stderr);
+void expected(char *s){
+	fprintf(stderr, "Error: %s expected\n",s);
 	exit(1);
+}
+
+void matchstring(char *s){
+    if (strcmp(value, s) != 0)expected(s);
 }
 
 void match(char c){
-	if(lookahead != c) expected("'%c'",c);
-
+	char s[2];
+	if(lookahead != c){
+		s[0] = c;
+		s[1] =  '\0';
+		expected(s);
+	}
 	nextChar();
+	skipWhite();
 }
 
 void getOp(){
@@ -279,6 +270,8 @@ void getOp(){
 void getName(){
 	int i,kw;
 
+	while(lookahead  == '\n')newLine();
+
 	if(!isalpha(lookahead)) expected("Identifier");
 
 	for(i=0;isalnum(lookahead)&& i<MAX_NAME;i++){
@@ -286,9 +279,8 @@ void getName(){
 		nextChar();	
 	}
 	value[i] = '\0';
-	kw = lookup(value, kwlist, KWLIST_SZ);
-	if(kw == -1)token = 'x';
-	else token = kwcode[kw];
+	token = 'x';
+	skipWhite();
 }
 
 void getNum(){
@@ -302,6 +294,7 @@ void getNum(){
 	}
 	value[i] = '\0';
 	token = '#';
+	skipWhite();
 }
 
 int getBoolean(){
@@ -325,10 +318,10 @@ void emit(char *fmt, ...){
 }
 
 void expression(){
-	term();
+	firstterm();
 	
 	while(isAddOp(lookahead)){
-		emit("PUSH AX");
+		printf("\tPUSH AX\n");
 		switch(lookahead){
 			case '+':
 				add();
@@ -336,26 +329,29 @@ void expression(){
 			case '-':
 				subtract();
 				break;
-			default:
-				expected("Operation");
-				break;
 		}
 	}
 }
 
+void firstterm(){
+    signedFactor();
+    term1();
+}
+
 void term(){
-	signedFactor();
+	factor();
+	term1();
+}
+
+void term1(){
 	while(isMulOp(lookahead)){
-		emit("PUSH AX");
+		printf("PUSH AX");
 		switch(lookahead){
 			case '*':
 				multiply();
 				break;
 			case '/':
 				divide();
-				break;
-			default:
-				emit("Operation!");
 				break;
 		}
 	}
@@ -364,48 +360,51 @@ void term(){
 void factor(){
 	if(lookahead == '('){
 		match('(');
-		boolExpression();
+		expression();
 		match(')');
 	}
 	else if(isalpha(lookahead)) ident();
-	//else emit("MOV AX, %c", getNum());
+	else{ 
+		getNum();
+		printf("\tmov ax, %s\n", value);
+	}
 	
 }
 
 void signedFactor(){
-	if(lookahead == '+')nextChar();
-	if(lookahead == '-'){
+	int i;
+	i = (lookahead == '-');
+
+	if(isAddOp(lookahead)){
 		nextChar();
-		/*if(isdigit(lookahead))emit("MOV AX, - %c",getNum());
-		else{
-			factor();
-			emit("NEG AX");
-		}*/
-	}else factor();
+		skipWhite();
+	}
+	factor();
+	if(i)printf("\tneg ax\n");
 }
 
 void ident(){
-	char name;
 	getName();
 	if(lookahead == '('){
 		match('(');
 		match(')');
-		emit("CALL %c", name);
-	}else emit("MOV AX, [%c]", name);
+		printf("CALL %s", value);
+	}else printf("MOV AX, [%s]", value);
 }
 
 void assignment(){
-	char name;
-	getName();
+	char name[MAX_NAME+1];
+	strcpy(name,value);
 	match('=');
-	boolExpression();
-	emit("MOV [%c], AX",name);
+	expression();
+	printf("\tlea bx, [%s]\n", name);
+	printf("\tmov [bx], ax\n");
 }
 
 void relation(){
 	expression();
 	if(isRelOp(lookahead)){
-		emit("PUSH AX");
+		printf("PUSH AX");
 		switch(lookahead){
 			case '=':
 				equals();
@@ -427,7 +426,7 @@ void boolExpression(){
 	boolTerm();
 	
 	while(isOrOp(lookahead)){
-		emit("PUSH AX");
+		printf("PUSH AX");
 		switch(lookahead){
 			case '|':
 				boolOr();
@@ -438,25 +437,25 @@ void boolExpression(){
 		}
 	}
 	if(!isBoolean(lookahead))expected("Boolean Literal");
-	if(getBoolean())emit("MOV AX, -1");
-	else emit("MOV AX, 0");
+	if(getBoolean())printf("MOV AX, -1");
+	else printf("MOV AX, 0");
 }
 
 void boolFactor(){
 	if(isBoolean(lookahead)){
-		if(getBoolean)emit("MOV AX, -1");
-		else emit("MOV AX, 0");
+		if(getBoolean)printf("MOV AX, -1");
+		else printf("MOV AX, 0");
 	}else relation();
 }
 
 void boolTerm(){
 	noFactor();
 	while(lookahead == '&'){
-		emit("PUSH AX");
+		printf("PUSH AX");
 		match('&');
 		noFactor();
-		emit("POP BX");
-		emit("AND AX, BX");
+		printf("POP BX");
+		printf("AND AX, BX");
 	}
 }
 
@@ -464,22 +463,22 @@ void noFactor(){
 	if(lookahead == '!'){
 		match('!');
 		boolFactor();
-		emit("NOT AX");
+		printf("NOT AX");
 	}else boolFactor();
 }
 
 void boolOr(){
 	match('|');
 	boolTerm();
-	emit("POP BX");
-	emit("OR AX, BX");
+	printf("POP BX");
+	printf("OR AX, BX");
 }
 
 void boolXor(){
 	match('~');
 	boolTerm();
-	emit("POP BX");
-	emit("XOR AX, BX");
+	printf("POP BX");
+	printf("XOR AX, BX");
 }
 
 int isOp(char c){
@@ -514,13 +513,13 @@ void equals(){
 	l2 = newLabel();
 
 	expression();
-	emit("POP BX");
-	emit("CMP BX, AX");
-	emit("JE L%d",l1);
-	emit("MOV AX, 0");
-	emit("JMP L%d",l2);
+	printf("POP BX");
+	printf("CMP BX, AX");
+	printf("JE L%d",l1);
+	printf("MOV AX, 0");
+	printf("JMP L%d",l2);
 	postLabel(l1);
-	emit("MOV AX, -1");
+	printf("MOV AX, -1");
 	postLabel(l2);
 }
 
@@ -532,13 +531,13 @@ void notEquals(){
 	l2 = newLabel();
 
 	expression();
-	emit("POP BX");
-	emit("CMP BX, AX");
-	emit("JNE L%d",l1);
-	emit("MOV AX, 0");
-	emit("JMP L%d",l2);
+	printf("POP BX");
+	printf("CMP BX, AX");
+	printf("JNE L%d",l1);
+	printf("MOV AX, 0");
+	printf("JMP L%d",l2);
 	postLabel(l1);
-	emit("MOV AX, -1");
+	printf("MOV AX, -1");
 	postLabel(l2);	
 }
 
@@ -550,13 +549,13 @@ void greater(){
 	l2 = newLabel();
 
 	expression();
-	emit("POP BX");
-	emit("CMP BX, AX");
-	emit("JG L%d",l1);
-	emit("MOV AX, 0");
-	emit("JMP L%d",l2);
+	printf("POP BX");
+	printf("CMP BX, AX");
+	printf("JG L%d",l1);
+	printf("MOV AX, 0");
+	printf("JMP L%d",l2);
 	postLabel(l1);
-	emit("MOV AX, -1");
+	printf("MOV AX, -1");
 	postLabel(l2);
 }
 
@@ -568,44 +567,44 @@ void less(){
 	l2 = newLabel();
 
 	expression();
-	emit("POP BX");
-	emit("CMP BX, AX");
-	emit("JL L%d",l1);
-	emit("MOV AX, 0");
-	emit("JMP L%d",l2);
+	printf("POP BX");
+	printf("CMP BX, AX");
+	printf("JL L%d",l1);
+	printf("MOV AX, 0");
+	printf("JMP L%d",l2);
 	postLabel(l1);
-	emit("MOV AX, -1");
+	printf("MOV AX, -1");
 	postLabel(l2);	
 }
 
 void multiply(){
 	match('*');
 	factor();
-    emit("POP BX");
-    emit("IMUL BX");
+    printf("POP BX");
+    printf("IMUL BX");
 }
 
 void divide(){
 	match('/');
 	factor();
-	emit("POP BX");
-	emit("XCHG AX, BX");
-	emit("CWD");
-	emit("IDIV BX");
+	printf("POP BX");
+	printf("XCHG AX, BX");
+	printf("CWD");
+	printf("IDIV BX");
 
 } 
 
 void add(){
 	match('+');
 	term();
-	emit("POP BX");
-	emit("ADD AX, BX");
+	printf("POP BX");
+	printf("ADD AX, BX");
 }
 
 void subtract(){
 	match('-');
 	term();
-	emit("POP BX");
-	emit("SUB AX, BX");
-    emit("NEG AX");
+	printf("POP BX");
+	printf("SUB AX, BX");
+    printf("NEG AX");
 }

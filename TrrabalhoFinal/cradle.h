@@ -13,10 +13,7 @@ int labelCount;
 char token;
 char value[MAX_TOKEN+1];
 
-char *symtbl[SYMTBL_SZ];
-char *kwlist[KWLIST_SZ] = {"IF", "ELSE", "ENDIF", "END"};
 
-const char *kwcode = "ilee";
 /*
 *@brief inicia o compilador
 */
@@ -27,6 +24,8 @@ void init();
 */
 void other();
 
+void condition();
+
 /*
 *@brief analisa e traduz o programa
 */
@@ -35,7 +34,7 @@ void programa();
 /*
 *@brief analisa, identifica o inicio/fim de umbloco  e o traduz 
 */
-void block(int exitLabel);
+void block();
 
 /*
 *@brief reconhece uma linha em branco
@@ -65,12 +64,12 @@ void relation();
 /*
 *@brief analiza e traduz o comando de interrupção de laço.
 */
-void doBreak(int exitLabel);
+void doBreak();
 
 /*
 *@brief trata do comando condicional if
 */
-void doIf(int exitLabel);
+void doIf();
 
 /*
 *@brief trata do comando de repetição while
@@ -120,17 +119,22 @@ void skipWhite();
 /*
 *@brief mostra uma mensagem de erro com formatação
 */
-void error(char *fmt, ...);
+void error(char *s);
 
 /*
 *@brief mostra uma mensagem de erro e encerra o programa
 */
-void fatal(char *fmt, ...);
+void fatal(char *s);
 
 /*
 *@brief chamada para exibir mensagem sobre uma entrada esperada 
 */
-void expected(char *fmt, ...);
+void expected(char *s);
+
+/*
+*@brief verifica uma keyword
+*/
+void matchstring(char *s);
 
 /*
 *@brief verifica se a entrada dá match com o esperado, chamand expected c.c.
@@ -165,10 +169,14 @@ void emit(char *fmt, ...);
 */
 void expression();
 
+void firstterm();
+
+void term();
+
 /*
 *@brief reconhece e traduz um termo
 */
-void term();
+void term1();
 
 /*
 *@brief reconhece um termo de uma expressão e salva o mesmo no registrador AX
@@ -286,4 +294,5 @@ void add();
 * @brief reconhece operação de subtração e traduz pra assembly a expressão usando o operador SUB
 */
 void subtract();
+
 #endif
