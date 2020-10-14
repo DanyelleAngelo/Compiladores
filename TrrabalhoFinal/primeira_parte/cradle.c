@@ -21,13 +21,13 @@ void other(){
 }
 
 void condition(){
-	printf("\t## condition ##\n");
+	printf("\t## CONDITION ##\n");
 }
 
 void programa(){
 	block();
 	matchstring("END");
-	printf("\tint 2h\n");
+	printf("\tINT 2H\n");
 }
 
 void block(){
@@ -96,11 +96,11 @@ void doIf(){
 	l1 = newLabel();//printfe um rótulo para o comando
 	l2 = l1;
 	
-	printf("\tjz L%d\n", l1);
+	printf("\tJZ L%d\n", l1);
 	block();
 	if(token == 'l'){//l = else
 		l2 = newLabel();
-		printf("\tjmp L%d\n", l2);
+		printf("\tJMP L%d\n", l2);
 		printf("L%d:\n", l1);
 		block();
 	}
@@ -366,7 +366,7 @@ void factor(){
 	else if(isalpha(lookahead)) ident();
 	else{ 
 		getNum();
-		printf("\tmov ax, %s\n", value);
+		printf("\tMOV AX, %s\n", value);
 	}
 	
 }
@@ -380,7 +380,7 @@ void signedFactor(){
 		skipWhite();
 	}
 	factor();
-	if(i)printf("\tneg ax\n");
+	if(i)printf("\tNEG AX\n");
 }
 
 void ident(){
@@ -397,8 +397,8 @@ void assignment(){
 	strcpy(name,value);
 	match('=');
 	expression();
-	printf("\tlea bx, [%s]\n", name);
-	printf("\tmov [bx], ax\n");
+	printf("\tLEA BX, [%s]\n", name);
+	printf("\tMOV [BX], AX\n");
 }
 
 void relation(){
