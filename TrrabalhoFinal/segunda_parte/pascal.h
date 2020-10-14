@@ -50,4 +50,57 @@ int isAddOp(char c);
 */
 int isMulOp(char c);
 
+/*
+*@brief analisa e traduz um programa
+*/
+void prog();
+
+void prolog();
+
+void epilog(char name);
+
+/*
+*@brief processa um bloco
+*/
+void doBlock(char name);
+
+/*
+*@brief verifica tipo
+*/
+void declaration();
+
+/*
+*@brief verifica e reconhece um comando 
+*/
+void statements();
+
+/*
+*@brief reconhece e traduz a declaração de uma label
+*/
+void labels();
+
+/*
+*@brief reconhece e traduz a declaração de uma constante
+*/
+void constants();
+
+/*
+*@brief reconhece e traduz a declaração de um type
+*/
+void types();
+
+/*
+*@brief reconhece e traduz a declaração de uma variável
+*/
+void variables();
+
+/*
+*@brief reconhece e traduz a declaração de uma procedure
+*/
+void doProcedure();
+
+/*
+*@brief reconhece e traduz a declaração de uma função
+*/
+void doFunction();
 #endif

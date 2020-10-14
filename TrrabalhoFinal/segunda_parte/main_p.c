@@ -1,9 +1,10 @@
 #include <string.h>
 #include <stdio.h>
-#include "cradle.h"
+#include "pascal.h"
 
 
 int main(){
 	init();
+	prog();
 	return 0;
 }

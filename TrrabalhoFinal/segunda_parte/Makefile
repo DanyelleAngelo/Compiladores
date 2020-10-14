@@ -1,16 +1,16 @@
 all: clean init clean go
 	
-init: libCradle.a
-	gcc main.c -o main libCradle.a
+init: libPascal.a
+	gcc main_p.c -o main_p libPascal.a
 
-libCradle.a: cradle
-	ar rcs libCradle.a cradle.o
+libPascal.a: pascal
+	ar rcs libPascal.a pascal.o
 
-cradle: cradle.c cradle.h
-	gcc -c cradle.c
+pascal: pascal.c pascal.h
+	gcc -c pascal.c
 
 clean:
 	rm -rf *.o
 
 go:
-	./main
+	./main_p
