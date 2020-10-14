@@ -1,8 +1,10 @@
-#ifndef PASCAL_H
-#define PASCAL_H
+#ifndef COMPILEC_H
+#define COMPILEC_H
 
-char lookahead;
-
+int lookahead;
+char cur_class;
+char cur_type;
+char cur_sign;
 
 /*
 *@brief inicia o compilador
@@ -51,56 +53,29 @@ int isAddOp(char c);
 int isMulOp(char c);
 
 /*
-*@brief analisa e traduz um programa
+*@brief analisa um programa Snall C
 */
 void prog();
 
-void prolog();
+void preProc();
 
-void epilog(char name);
+void intDecl();
 
-/*
-*@brief processa um bloco
-*/
-void doBlock(char name);
+void charDecl();
 
-/*
-*@brief verifica tipo
-*/
-void declaration();
+void doFunction(char name);
 
 /*
-*@brief verifica e reconhece um comando 
+*@brief analisa a classe de armazenamento, guarda ela em cur_class
 */
-void statements();
+void getClass();
 
 /*
-*@brief reconhece e traduz a declaração de uma label
+*@brief analisa a definição de um tipo e armazena em cur_type
 */
-void labels();
+void getType();
 
-/*
-*@brief reconhece e traduz a declaração de uma constante
-*/
-void constants();
+void topDecl();
 
-/*
-*@brief reconhece e traduz a declaração de um type
-*/
-void types();
-
-/*
-*@brief reconhece e traduz a declaração de uma variável
-*/
-void variables();
-
-/*
-*@brief reconhece e traduz a declaração de uma procedure
-*/
-void doProcedure();
-
-/*
-*@brief reconhece e traduz a declaração de uma função
-*/
-void doFunction();
+void doData(char name);
 #endif
