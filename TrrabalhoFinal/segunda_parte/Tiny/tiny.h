@@ -1,9 +1,15 @@
 #ifndef TINY_H
 #define TINY_H
 
-#define VAR_TBL_SZ 26
-char lookahead;
-int *varTbl, labelCount; 
+#define MAX_TOKEN 16
+#define KWLIST_SZ 11
+#define SYMTBL_SZ 1000
+
+
+char lookahead, *symTbl[SYMTBL_SZ];
+int nSym, labelCount; 
+char token,value[MAX_TOKEN+1];
+
 
 /* 
 *@brief zera o registrador primário
@@ -23,7 +29,7 @@ void asm_loadconst(int i);
 /* 
 *@brief carrega uma variável no registrador primário
 */
-void asm_loadvar(char name);
+void asm_loadvar(char *name);
 
 /*
 *@brief coloca registrador primário na pilha
@@ -53,7 +59,7 @@ void asm_popdiv();
 /*
 *@brief armazena registrador primário em variável
 */
-void asm_store(char name);
+void asm_store(char *name);
 
 /*
 *@brief inverte registrador primário
@@ -117,6 +123,18 @@ void init();
 void nextChar();
 
 /*
+*@brief reconhece caractere em branco e solicita a leitura do próximo
+*/
+void skipWhite();
+
+/*
+*@brief reconhece quebras de linhas: sempre que o analisadr encontrar um '\n'
+*é pedid que o mesm leia o próximo caractere e que no processo reconheça todos
+*os caracteres em branco.
+*/
+void newLine();
+
+/*
 *@brief mostra uma mensagem de erro com formatação
 */
 void error(char *s);
@@ -141,11 +159,25 @@ int newLabel();
 */
 void match(char c);
 
+/*
+*@brief verifica o match do token corrente com uma string fornecida como parametro.
+*/
+void matchString(char *s);
+
+/*
+*@brief verifica se uma palavra "s" pertence a uma lista "list"
+*/
+int lookaheadUp(char *s, char *list[], int size);
+
+/*
+*@brief verifica se o token corrente pertence a lista de palavras reservadas
+*/
+void scan();
 
 /*
 *@brief verifca se o nome de um indetificador é formado por letras
 */
-char getName();
+void getName();
 
 /*
 *@brief verifica se lookhead é um número
@@ -174,22 +206,31 @@ int isOrOp(char c);
 int isRelOp(char c);
 
 /*
-*@brief verifica se uma ariável existe na nossa tabela de símbolos
-*/
-int intable(char name);
-
-/*
 *@brief exibe uma mensagem  de erro relativa a referência a um identificador não declarado e
 *encerra a compilação
 */
-void undefined(char name);
+void undefined(char *name);
 
 /*
-*@brief verifica se a declaração analisada existe na tabela de símbolos, se existir retorna
-*uma mensagem de erro, c.c marca a variável na tabela de simbolos como declarada e aloca 
-*espaço na memória para a mesma
+*@brief verifica chamando a função looakheadUp se uma variável existe na nossa tabela de símbolos 
 */
-void allocVar(char name);
+int intable(char *name);
+
+
+/*
+*@brief chama intable para verificar se a variável já foi declarada, se sim encerra o programa;
+*se não verifica se a tabela de símbolos não atingiu sua capacidade máxima, se sim encerra programa,
+*se não aloca espaço na memória, se tudo der  certo salva o novo símbolo alocado e referencia espaço
+*na tabela de símbolos.
+*/
+void addSymbol(char *name);
+
+/*
+*@brief chama addSymbol para adicionar o token lido na tabela de símbolos, veifica se o próximo token
+*é um sinal de - e salva o token subsequente de acordo com o símbolo anterior (o próximo token é um número
+*negativo?)
+*/
+void allocVar(char *name);
 
 /*
 *@brief verifica os tipos de declaração do código de entrada e desvia o fluxo do compilador
@@ -243,12 +284,13 @@ void negFactor();
 void firstFactor();
 
 /*
-*@brief analisa e traduz um cmando de atribuição
+*@brief analisa e traduz um comando de atribuição
+*associado a uma variavel
 */
 void assignment();
 
 /*
-*@brief analisa e traduz uma relação
+*@brief analisa e traduz uma relação de: diferente,menor ou igual, maior ou igual
 */
 void relation();
 
@@ -298,12 +340,12 @@ void multiply();
 void divide();
 
 /*
-*@brief reconhece e traduz a estrutura de controle if
+*@brief reconhece e traduz a estrutura de controle if-else-endif
 */
 void doIf();
 
 /*
-*@brief reconhece e traduz a estrutura de controle while
+*@brief reconhece e traduz a estrutura de controle while-endwhile
 */
 void doWhile();
 
@@ -331,5 +373,18 @@ void prolog();
 *@brief emite o código que identifica o programa principal para a inicialização
 */
 void epilog();
+
+
+
+/*criar uma biblioteca  a parte*/
+/*
+*@brief faz a leityra de uma lista de parâmetros (separados por vírgulas)
+*/
+void doRead();
+
+/*
+*@brief
+*/
+void doWrite();
 
 #endif

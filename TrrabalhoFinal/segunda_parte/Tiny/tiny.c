@@ -6,6 +6,9 @@
 
 #include "tiny.h"
 
+char *kwlist[KWLIST_SZ] = {"IF","ELSE","ENDIF","WHILE","ENDWHILE","VAR","BEGIN","END","PROGRAM","READ","WRITE"};
+char *kwcode = "ilewevbepRW";
+
 void asm_clear(){
 	printf("\txor ax, ax\n");
 }
@@ -18,9 +21,9 @@ void asm_loadconst(int i){
 	printf("\tmov ax, %d\n", i);
 }
 
-void asm_loadvar(char name){
+void asm_loadvar(char *name){
 	if(!intable(name))undefined(name);
-	printf("\tmov ax, word ptr %c\n", name);
+	printf("\tmov ax, word ptr %s\n", name);
 }
 
 void asm_push(){
@@ -50,7 +53,7 @@ void asm_popdiv(){
 	printf("\tidiv bx\n");
 }
 
-void asm_store(char name){
+void asm_store(char *name){
 	if(!intable(name))undefined(name);
 	printf("\tmov word ptr bx, ax\n");
 }
@@ -81,9 +84,7 @@ void asm_popcompare(){
 
 void asm_relop(char op){
 	char *jump;
-	int l1,l2;
-	l1 = newLabel();
-	l2 = newLabel();
+	int l1 = newLabel(),l2 = newLabel();
 
 	switch(op){
 		case '=':
@@ -97,6 +98,12 @@ void asm_relop(char op){
 			break;
 		case '>':
 			jump = "jg";
+			break;
+		case 'L':
+			jump = "jle";
+			break;
+		case 'G':
+			jump = "jge";
 			break;
 	}
 	printf("\t%s L%d\n",jump,l1);
@@ -115,18 +122,36 @@ void asm_jmpfalse(int label){
 	printf("\tjz L%d\n", label);
 }
 
-void asm_read(){}
+void asm_read(){
+	printf("\tcall READ\n");
+	asm_store(value);
+}
 
-void asm_write(){}
+void asm_write(){
+	printf("\tcall WRITE\n");
+}
 
 void init(){
 	labelCount = 0;
-	varTbl = calloc(VAR_TBL_SZ,sizeof(int));
+	nSym = 0;
+	//symTbl = calloc(SYMTBL_SZ,sizeof(char));
 	nextChar();
+	scan();
 }
 
 void nextChar(){
 	lookahead = getchar();
+}
+
+void skipWhite(){
+	while (lookahead == ' ' || lookahead == '\t')nextChar();	
+}
+
+void newLine(){
+	while(lookahead == '\n'){
+		nextChar();
+		skipWhite();
+	}
 }
 
 void error(char *s){
@@ -149,25 +174,52 @@ int newLabel(){
 
 void match(char c){
 	char s[2];
+	newLine();
 	if(lookahead != c){
 		s[0] = c;
 		s[1] =  '\0';
 		expected(s);
 	}
 	nextChar();
+	skipWhite();
 }
 
-char getName(){
-	char identifier;
+void matchString(char *s){
+	if(strcmp(value,s)!=0)expected(s);
+}
+
+int lookaheadUp(char *s, char *list[], int size){
+	int i;
+	for(i=0;i<size;i++){
+		if(strcmp(list[i],s)==0)return i;
+	}
+	return -1;
+}
+
+void scan(){
+	int kw;
+	getName();
+	kw = lookaheadUp(value,kwlist,KWLIST_SZ);
+	if(kw==-1)token = 'x';
+	else token = kwcode[kw];
+}
+
+void getName(){
+	int i;
+	newLine();
 
 	if(!isalpha(lookahead)) expected("Identifier");
-
-	identifier = toupper(lookahead);
-	nextChar();	
-	return identifier;
+	for(i=0;isalnum(lookahead) && i<MAX_TOKEN;i++){
+		value[i] = toupper(lookahead);
+		nextChar();
+	}
+	value[i] =  '\0';
+	token = 'x';
+	skipWhite();
 }
 
 int getNum(){
+	newLine();
 	int num =0;
 
 	if(!isdigit(lookahead)) expected("Integer");
@@ -177,6 +229,7 @@ int getNum(){
 		num += lookahead - '0';
 		nextChar();
 	}
+	skipWhite();
 	return num;
 }
 
@@ -196,38 +249,53 @@ int isRelOp(char c){
 	return (strchr("=#<>",c)!=NULL);
 }
 
-int intable(char name){
-	return (varTbl[name - 'A'] != 0);
-}
-
-void undefined(char name){
-	fprintf(stderr, "Error: Undefinied identifier %c\n",name);
+void undefined(char *name){
+	fprintf(stderr, "Error: Undefinied identifier %s\n",name);
 	exit(1);
 }
 
-void allocVar(char name){
+int intable(char *name){
+	if(lookaheadUp(name,symTbl,nSym)<0)return 0;
+	return 1;
+}
+
+void addSymbol(char *name){
+	char *newSym;
+	if(intable(name)){
+		fprintf(stderr, "Duplicated variable name: %s\n",name );
+		exit(1);
+	}
+	if(nSym >= SYMTBL_SZ){
+		fatal("Symbol table full!");
+	}
+	newSym = (char*)malloc(sizeof(char)*(strlen(name)+1));
+	if(newSym == NULL)fatal("Out of memory!");
+	strcpy(newSym,name);
+	symTbl[nSym++]=newSym;
+}
+
+void allocVar(char *name){
 	int value = 0, signal = 1;
 
-	if(intable(name)){
-		fprintf(stderr, "Duplicate variable name: %c\n", name);
-		exit(1);
-	}else{
-		varTbl[name - 'A'] = 1;
-		if(lookahead == '='){
-			match('=');
-			if(lookahead == '-'){
-				match('-');
-				signal = -1;
-			}
-			value = signal * getNum();
+	addSymbol(name);
+	newLine();
+	if(lookahead == '='){
+		match('=');
+		newLine();	
+		if(lookahead == '-'){
+			match('-');
+			signal = -1;
 		}
-		printf("%c:\tdw %d\n",name,value);
+		value = signal * getNum();
 	}
+	printf("%s:\tdw %d\n",name,value);
+	
 }
 
 void topDecls(){
-	while(lookahead!='b'){
-		switch(lookahead){
+	scan();
+	while(token!='b'){
+		switch(token){
 			case 'v':
 				decl();
 				break;
@@ -236,13 +304,15 @@ void topDecls(){
 				expected("BEGIN");
 				break;
 		}
+		scan();
 	}
 }
 
 void decl(){
-	match('v');
 	for(;;){
-		allocVar(getName());
+		getName();
+		allocVar(value);
+		newLine();
 		if(lookahead != ',')break;
 		match(',');//quando declarado mais de uma variável por vez as mesma devem ser separadas por ","	
 	}
@@ -250,13 +320,20 @@ void decl(){
 
 void block(){
 	int follow = 0;
-	while(!follow){
-		switch(lookahead){
+	do{
+		scan();
+		switch(token){
 			case 'i':
 				doIf();
 				break;
 			case 'w':
 				doWhile();
+				break;
+			case 'W':
+				doWrite();
+				break;
+			case 'R':
+				doRead();
 				break;
 			case 'e':
 			case 'l':
@@ -266,10 +343,11 @@ void block(){
 				assignment();
 				break;
 		}
-	}
+	}while(!follow);
 }
 
 void term1(){
+	newLine();
 	while(isMulOp(lookahead)){
 		asm_push();
 		switch(lookahead){
@@ -280,6 +358,7 @@ void term1(){
 				divide();
 				break;
 		}
+		newLine();
 	}
 }
 
@@ -295,6 +374,7 @@ void firstTerm(){
 
 void expression(){
 	firstTerm();
+	newLine();
 	while(isAddOp(lookahead)){
 		asm_push();
 		switch(lookahead){
@@ -305,18 +385,20 @@ void expression(){
 				subtract();
 				break;
 		}
+		newLine();
 	}
 }
 
-
 void factor(){
+	newLine();
 	if(lookahead == '('){
 		match('(');
 		//expression();
 		boolExpression();
 		match(')');
 	}else if(isalpha(lookahead)){
-		asm_loadvar(getName());
+		getName();
+		asm_loadvar(value);
 	}else{
 		asm_loadconst(getNum());
 	}
@@ -333,6 +415,7 @@ void negFactor(){
 }
 
 void firstFactor(){
+	newLine();
 	switch(lookahead){
 		case '+':
 			match('+');
@@ -349,7 +432,8 @@ void firstFactor(){
 }
 
 void assignment(){
-	char name = getName();
+	char name [MAX_TOKEN+1];
+	strcpy(name,value);
 	match('=');
 	//expression();
 	boolExpression();
@@ -362,6 +446,18 @@ void relation(){
 	if(isRelOp(lookahead)){
 		op = lookahead;
 		match(op);
+		if(op == '<'){
+			if(lookahead == '>'){
+				match('>');
+				op = '#';
+			}else if(lookahead == '='){
+				match('=');
+				op = 'L';
+			}
+		}else if(op == '>' && lookahead == '='){
+			match('=');
+			op = 'G';
+		}
 		asm_push();
 		expression();
 		asm_popcompare();
@@ -379,16 +475,19 @@ void notFactor(){
 
 void boolTerm(){
 	notFactor();
+	newLine();
 	while(lookahead == '&'){
 		asm_push();
 		match('&');
 		notFactor();
 		asm_popand();
+		newLine();
 	}
 }
 
 void boolExpression(){
 	boolTerm();
+	newLine();
 	while(isOrOp(lookahead)){
 		asm_push();
 		switch(lookahead){
@@ -399,6 +498,7 @@ void boolExpression(){
 				boolXor();
 				break;
 		}
+		newLine();
 	}
 }
 
@@ -421,7 +521,7 @@ void add(){
 }
 
 void subtract(){
-	match('+');
+	match('-');
 	term();
 	asm_popsub();
 }
@@ -440,59 +540,55 @@ void divide(){
 
 void doIf(){
 	int l1,l2;
-	match('i');
 	boolExpression();
 	l1 = newLabel();
 	l2 = l1;
 
 	asm_jmpfalse(l1);
 	block();
-	if(lookahead  == 'l'){
-		match('l');
+	if(token  == 'l'){
 		l2 = newLabel();
 		asm_jmp(l2);
 		printf("L%d\n",l1);
 		block();
 	}
 	printf("L%d\n",l2);
-	match('e');
+	matchString("ENDIF");
 }
 
 void doWhile(){
-	int l1,l2;
-	match('w');
-	l1 = newLabel();
-	l2 = newLabel();
+	int l1 = newLabel(),l2 = newLabel();
+
 	printf("L%d\n",l1);
 	boolExpression();
 	asm_jmpfalse(l2);
 	block();
-	match('e');
+	matchString("ENDWHILE");
 	asm_jmp(l1);
 	printf("L%d\n",l2);
 }
 
 void mainBlock(){
-	match('b');
+	matchString("BEGIN");
 	prolog();
 	block();
-	match('e');
+	matchString("END");
 	epilog();
 }
 
 void prog(){
-	match('p');
+	matchString("PROGRAM");
 	header();
 	topDecls();
 	mainBlock();
 	match('.');
-	free(varTbl);
 }
 
 void header(){
 	printf(".model small\n");
 	printf(".stack\n");
 	printf(".code\n");
+	printf("extrn READ:near, WRITE:near\n");
 	printf("PROG segment byte public\n");
 	printf("\tassume cs:PROG,ds:PROG,es:PROG,ss:PROG\n");
 }
@@ -510,4 +606,29 @@ void epilog(){
 	printf("\tint 21h\n");
 	printf("PROG ends\n");
 	printf("\tend MAIN\n");
+}
+
+/*Criar uma biblioteca a parte*/
+void doRead(){
+	match('(');
+	for(;;){
+		getName();
+		asm_read();
+		newLine();
+		if(lookahead != ',')break;
+		match(',');
+	}
+	match(')');
+}
+
+void doWrite(){
+	match('(');
+	for(;;){
+		expression();
+		asm_write();
+		newLine();
+		if(lookahead !=',')break;
+		match(',');
+	}
+	match(')');
 }
