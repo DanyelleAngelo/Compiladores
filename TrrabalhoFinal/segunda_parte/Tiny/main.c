@@ -5,7 +5,13 @@
 
 int main(){
 	init();
-	prog();
-	if(lookahead != '\n')fatal("Unexpected data after \'.\'");
+	matchString("PROGRAM");
+	header();
+	topDecls();
+	matchString("BEGIN");
+	prolog();
+	block();
+	matchString("END");
+	epilog();
 	return 0;
 }

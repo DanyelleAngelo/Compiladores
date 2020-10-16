@@ -2,13 +2,12 @@
 #define TINY_H
 
 #define MAX_TOKEN 16
-#define KWLIST_SZ 11
+#define KWLIST_SZ 9
 #define SYMTBL_SZ 1000
 
 
-char lookahead, *symTbl[SYMTBL_SZ];
+char lookahead,token, *symTbl[SYMTBL_SZ], symType[SYMTBL_SZ],value[MAX_TOKEN+1];
 int nSym, labelCount; 
-char token,value[MAX_TOKEN+1];
 
 
 /* 
@@ -24,7 +23,7 @@ void asm_negative();
 /* 
 *@brief carrega uma constante numérica no registrador primário
 */
-void asm_loadconst(int i);
+void asm_loadconst(char *val);
 
 /* 
 *@brief carrega uma variável no registrador primário
@@ -123,7 +122,7 @@ void init();
 void nextChar();
 
 /*
-*@brief reconhece caractere em branco e solicita a leitura do próximo
+*@brief reconhece caractere em branco e avança soo cursior licitando a leitura do próximo
 */
 void skipWhite();
 
@@ -157,11 +156,6 @@ int newLabel();
 /*
 *@brief verifica se a entrada dá match com o esperado, chamand expected c.c.
 */
-void match(char c);
-
-/*
-*@brief verifica o match do token corrente com uma string fornecida como parametro.
-*/
 void matchString(char *s);
 
 /*
@@ -170,20 +164,38 @@ void matchString(char *s);
 int lookaheadUp(char *s, char *list[], int size);
 
 /*
-*@brief verifica se o token corrente pertence a lista de palavras reservadas
+*@brief retorna o endereço do identificador na tabela de símbolo
+*/
+int locate(char *name);
+
+/*
+*@brief verifica se o token corrente faz referencia a uma keyword 
+*se token == 'x' então value é uma string, essa string é então passada
+*para lookaheadup que faz a comparação da string com cada keyword da nossa lista
 */
 void scan();
 
 /*
-*@brief verifca se o nome de um indetificador é formado por letras
+*@brief verifca se o nome de um indetificador ou palavra-chave é formado por letras
+*vai salvando cada caractere formador do identificador na variável global value 
 */
 void getName();
 
 /*
-*@brief verifica se lookhead é um número
-*@return inteiro lido do código fonte
+*@brief verifica se lookahead é um número, vai salvando cada digito do número na variável global value
 */
-int getNum();
+void getNum();
+
+/*
+*@brief verifica se lookahead é um operador  e o salva na variável global value
+*/
+void getOp();
+
+/*
+*@brief reconhece com que tipo de token estamos lidando
+*/
+void nextToken();
+
 
 /*
 *@brief verifica se o caractere analisado é um operador de soma ou subtração
@@ -212,56 +224,66 @@ int isRelOp(char c);
 void undefined(char *name);
 
 /*
+*@brief exibe uma mensagem  de erro dizend qe se esperava receber o nome de um identificador
+*/
+void checkIdent();
+
+/*
+*@brief exibe uma mensagem  de erro relativa a uma multideclaração 
+*/
+void  duplicated(char *name);
+
+/*
 *@brief verifica chamando a função looakheadUp se uma variável existe na nossa tabela de símbolos 
 */
 int intable(char *name);
 
+/*
+*@brief dispara undefined caso um símbolo seja referenciado mas nã exista na tabela de simbolos 
+*/
+void checkTable(char *name);
 
 /*
-*@brief chama intable para verificar se a variável já foi declarada, se sim encerra o programa;
+*@brief dispara a rotina duplicated para avisar de uma multi-declaração, caso haja uma
+*/
+void checkedUp(char *name);
+
+/*
+*@brief chama checkedup para verificar se a variável já foi declarada, se sim encerra o programa;
 *se não verifica se a tabela de símbolos não atingiu sua capacidade máxima, se sim encerra programa,
-*se não aloca espaço na memória, se tudo der  certo salva o novo símbolo alocado e referencia espaço
-*na tabela de símbolos.
+*se não aloca espaço na memória, se tudo der  certo salva o novo símbolo alocado na tabela de símbolos.
 */
-void addSymbol(char *name);
+void addSymbol(char *name,char type);
 
 /*
-*@brief chama addSymbol para adicionar o token lido na tabela de símbolos, veifica se o próximo token
-*é um sinal de - e salva o token subsequente de acordo com o símbolo anterior (o próximo token é um número
-*negativo?)
+*@brief inicializa e aloca memória para uma declaração de variável
 */
-void allocVar(char *name);
+void allocVar(char *name, int value);
 
 /*
-*@brief verifica os tipos de declaração do código de entrada e desvia o fluxo do compilador
-*para os procedimento dos respectivos tipos detectados.
+*@brief reconhece declarações de variáveis em uma ou mais linhas
 */
 void topDecls();
 
 /*
-*@brief verifica a declaração de uma ou mais variáveis
+*@brief verifica a declaração variável e chama as rotinas de adição na tabela de símbolos e alocação de espaço
 */
 void decl();
 
 /*
-*@brief
+*@brief reconhece um identificador
+*/
+void readVar();
+
+/*
+*@brief reconhece comandos da linguagem
 */
 void block();
 
 /*
 *@brief analisa e traduz um termo
 */
-void term1();
-
-/*
-*@brief dispara as rotina para reconhecer e traduzir um termo
-*/
 void term();
-
-/*
-*@brief analisa e traduz um termo inicial
-*/
-void firstTerm();
 
 /*
 *@brief analisa e traduz uma expressão matemática
@@ -378,7 +400,7 @@ void epilog();
 
 /*criar uma biblioteca  a parte*/
 /*
-*@brief faz a leityra de uma lista de parâmetros (separados por vírgulas)
+*@brief reconhece uma lista de parâmetros (separados por vírgulas)
 */
 void doRead();
 

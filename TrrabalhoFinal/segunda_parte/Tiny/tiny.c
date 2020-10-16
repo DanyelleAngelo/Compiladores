@@ -6,8 +6,8 @@
 
 #include "tiny.h"
 
-char *kwlist[KWLIST_SZ] = {"IF","ELSE","ENDIF","WHILE","ENDWHILE","VAR","BEGIN","END","PROGRAM","READ","WRITE"};
-char *kwcode = "ilewevbepRW";
+char *kwlist[KWLIST_SZ] = {"IF","ELSE","ENDIF","WHILE","ENDWHILE","VAR","END","READ","WRITE"};
+char kwcode[KWLIST_SZ+1] = "ileweveRW";
 
 void asm_clear(){
 	printf("\txor ax, ax\n");
@@ -17,8 +17,8 @@ void asm_negative(){
 	printf("\tneg ax\n");
 }
 
-void asm_loadconst(int i){
-	printf("\tmov ax, %d\n", i);
+void asm_loadconst(char *val){
+	printf("\tmov ax, %s\n", val);
 }
 
 void asm_loadvar(char *name){
@@ -54,8 +54,7 @@ void asm_popdiv(){
 }
 
 void asm_store(char *name){
-	if(!intable(name))undefined(name);
-	printf("\tmov word ptr bx, ax\n");
+	printf("\tmov word ptr %s, ax\n",name);
 }
 
 void asm_not(){
@@ -136,7 +135,7 @@ void init(){
 	nSym = 0;
 	//symTbl = calloc(SYMTBL_SZ,sizeof(char));
 	nextChar();
-	scan();
+	nextToken();
 }
 
 void nextChar(){
@@ -144,15 +143,16 @@ void nextChar(){
 }
 
 void skipWhite(){
-	while (lookahead == ' ' || lookahead == '\t')nextChar();	
+	while (isspace(lookahead))nextChar();	
 }
 
+/*
 void newLine(){
 	while(lookahead == '\n'){
 		nextChar();
 		skipWhite();
 	}
-}
+}*/
 
 void error(char *s){
 	fprintf(stderr, "Error: %s\n", s);
@@ -172,7 +172,7 @@ int newLabel(){
 	return labelCount++;
 }
 
-void match(char c){
+/*void match(char c){
 	char s[2];
 	newLine();
 	if(lookahead != c){
@@ -182,10 +182,11 @@ void match(char c){
 	}
 	nextChar();
 	skipWhite();
-}
+}*/
 
 void matchString(char *s){
 	if(strcmp(value,s)!=0)expected(s);
+	nextToken();
 }
 
 int lookaheadUp(char *s, char *list[], int size){
@@ -196,41 +197,58 @@ int lookaheadUp(char *s, char *list[], int size){
 	return -1;
 }
 
+int locate(char *name){
+	return lookaheadUp(name,symTbl,nSym);
+}
+
 void scan(){
 	int kw;
-	getName();
-	kw = lookaheadUp(value,kwlist,KWLIST_SZ);
-	if(kw==-1)token = 'x';
-	else token = kwcode[kw];
+	if(token == 'x'){
+		kw = lookaheadUp(value,kwlist,KWLIST_SZ);
+		if(kw >=0)token = kwcode[kw];
+	} 
 }
 
 void getName(){
 	int i;
-	newLine();
+	skipWhite();
 
-	if(!isalpha(lookahead)) expected("Identifier");
+	if(!isalpha(lookahead)) expected("Identifier or Keyword");
 	for(i=0;isalnum(lookahead) && i<MAX_TOKEN;i++){
 		value[i] = toupper(lookahead);
 		nextChar();
 	}
 	value[i] =  '\0';
 	token = 'x';
-	skipWhite();
 }
 
-int getNum(){
-	newLine();
-	int num =0;
+void getNum(){
+	skipWhite();
+	int i;
 
 	if(!isdigit(lookahead)) expected("Integer");
 
-	while(isdigit(lookahead)){
-		num *=10;
-		num += lookahead - '0';
+	for(i=0;isdigit(lookahead) && i<MAX_TOKEN;i++){
+		value[i] =  lookahead;
 		nextChar();
 	}
+	value[i] = '\0';
+	token  = '#';
+}
+
+void getOp(){
 	skipWhite();
-	return num;
+	token = lookahead;
+	value[0] = lookahead;
+	value[1] =  '\0';
+	nextChar();
+}
+
+void nextToken(){
+	skipWhite();
+	if(isalpha(lookahead))getName();
+	else if(isdigit(lookahead))getNum();
+	else getOp();	
 }
 
 int isAddOp(char c){
@@ -254,31 +272,44 @@ void undefined(char *name){
 	exit(1);
 }
 
+void checkIdent(){
+	if(token != 'x')expected("Identifier");
+}
+
+void  duplicated(char *name){
+	fprintf(stderr, "Duplicated variable name: %s\n",name );
+	exit(1);
+}
+
 int intable(char *name){
 	if(lookaheadUp(name,symTbl,nSym)<0)return 0;
 	return 1;
 }
 
-void addSymbol(char *name){
+void checkTable(char *name){
+	if (!intable(name))undefined(name);
+}
+
+void checkedUp(char *name){
+	if(intable(name))duplicated(name);
+}
+
+void addSymbol(char *name,char type){
 	char *newSym;
-	if(intable(name)){
-		fprintf(stderr, "Duplicated variable name: %s\n",name );
-		exit(1);
-	}
+	checkedUp(name);
 	if(nSym >= SYMTBL_SZ){
 		fatal("Symbol table full!");
 	}
 	newSym = (char*)malloc(sizeof(char)*(strlen(name)+1));
 	if(newSym == NULL)fatal("Out of memory!");
 	strcpy(newSym,name);
-	symTbl[nSym++]=newSym;
+	symTbl[nSym]=newSym;
+	nSym++;
 }
 
-void allocVar(char *name){
-	int value = 0, signal = 1;
+void allocVar(char *name, int value){
+	/*int value = 0, signal = 1;
 
-	addSymbol(name);
-	newLine();
 	if(lookahead == '='){
 		match('=');
 		newLine();	
@@ -287,35 +318,34 @@ void allocVar(char *name){
 			signal = -1;
 		}
 		value = signal * getNum();
-	}
+	}*/
 	printf("%s:\tdw %d\n",name,value);
 	
 }
 
 void topDecls(){
 	scan();
-	while(token!='b'){
-		switch(token){
-			case 'v':
-				decl();
-				break;
-			default:
-				error("Unrecogmized keyword.");
-				expected("BEGIN");
-				break;
-		}
-		scan();
+	while(token == 'v'){
+		do{
+			decl();
+		}while(token == ',');
 	}
 }
 
 void decl(){
-	for(;;){
-		getName();
-		allocVar(value);
-		newLine();
-		if(lookahead != ',')break;
-		match(',');//quando declarado mais de uma variável por vez as mesma devem ser separadas por ","	
-	}
+	nextToken();
+	if(token !='x')expected("Variable name");
+	checkedUp(value);
+	addSymbol(value,'v');
+	allocVar(value,0);
+	nextToken();
+}
+
+void readVar(){
+	checkIdent();
+	checkTable(value);
+	asm_read();
+	nextToken();
 }
 
 void block(){
@@ -346,11 +376,11 @@ void block(){
 	}while(!follow);
 }
 
-void term1(){
-	newLine();
-	while(isMulOp(lookahead)){
+void term(){
+	factor();
+	while(isMulOp(token)){
 		asm_push();
-		switch(lookahead){
+		switch(token){
 			case '*':
 				multiply();
 				break;
@@ -358,26 +388,16 @@ void term1(){
 				divide();
 				break;
 		}
-		newLine();
 	}
 }
 
-void term(){
-	factor();
-	term1();
-}
-
-void firstTerm(){
-	firstFactor();
-	term1();
-}
-
 void expression(){
-	firstTerm();
-	newLine();
-	while(isAddOp(lookahead)){
+	if(isAddOp(token))asm_clear();
+	else term();
+
+	while(isAddOp(token)){
 		asm_push();
-		switch(lookahead){
+		switch(token){
 			case '+':
 				add();
 				break;
@@ -385,26 +405,23 @@ void expression(){
 				subtract();
 				break;
 		}
-		newLine();
 	}
 }
 
 void factor(){
-	newLine();
-	if(lookahead == '('){
-		match('(');
-		//expression();
+	if(token == '('){
+		nextToken();
 		boolExpression();
-		match(')');
-	}else if(isalpha(lookahead)){
-		getName();
-		asm_loadvar(value);
+		matchString(")");
 	}else{
-		asm_loadconst(getNum());
+		if(token == 'x')asm_loadvar(value);
+		else if(token == '#')asm_loadconst(value);
+		else expected("Math Factor");
+		nextToken();
 	}
 }
 
-void negFactor(){
+/*void negFactor(){
 	match('-');
 	if(isdigit(lookahead)){
 		asm_loadconst(-getNum());
@@ -429,13 +446,14 @@ void firstFactor(){
 			factor();
 			break;
 	}
-}
+}*/
 
 void assignment(){
-	char name [MAX_TOKEN+1];
+	char name[MAX_TOKEN+1];
 	strcpy(name,value);
-	match('=');
-	//expression();
+	checkTable(name);
+	nextToken();
+	matchString("=");
 	boolExpression();
 	asm_store(name);
 }
@@ -443,19 +461,19 @@ void assignment(){
 void relation(){
 	char op;
 	expression();
-	if(isRelOp(lookahead)){
-		op = lookahead;
-		match(op);
+	if(isRelOp(token)){
+		op = token;
+		nextToken();
 		if(op == '<'){
-			if(lookahead == '>'){
-				match('>');
+			if(token == '>'){
+				nextToken();
 				op = '#';
-			}else if(lookahead == '='){
-				match('=');
+			}else if(token == '='){
+				nextToken();;
 				op = 'L';
 			}
-		}else if(op == '>' && lookahead == '='){
-			match('=');
+		}else if(op == '>' && token == '='){
+			nextToken();
 			op = 'G';
 		}
 		asm_push();
@@ -466,8 +484,8 @@ void relation(){
 }
 
 void notFactor(){
-	if(lookahead == '!'){
-		match('!');
+	if(token == '!'){
+		nextToken();
 		relation();
 		asm_not();
 	}else relation();
@@ -475,22 +493,19 @@ void notFactor(){
 
 void boolTerm(){
 	notFactor();
-	newLine();
-	while(lookahead == '&'){
+	while(token == '&'){
 		asm_push();
-		match('&');
+		nextToken();
 		notFactor();
 		asm_popand();
-		newLine();
 	}
 }
 
 void boolExpression(){
 	boolTerm();
-	newLine();
-	while(isOrOp(lookahead)){
+	while(isOrOp(token)){
 		asm_push();
-		switch(lookahead){
+		switch(token){
 			case '|':
 				boolOr();
 				break;
@@ -498,48 +513,48 @@ void boolExpression(){
 				boolXor();
 				break;
 		}
-		newLine();
 	}
 }
 
 void boolOr(){
-	match('|');
+	nextToken();
 	boolTerm();
 	asm_popor();
 }
 
 void boolXor(){
-	match('~');
+	nextToken();
 	boolTerm();
 	asm_popxor();
 }
 
 void add(){
-	match('+');
+	nextToken();
 	term();
 	asm_popadd();
 }
 
 void subtract(){
-	match('-');
+	nextToken();
 	term();
 	asm_popsub();
 }
 
 void multiply(){
-	match('*');
+	nextToken();
 	factor();
 	asm_popmul();
 }
 
 void divide(){
-	match('/');
+	nextToken();
 	factor();
 	asm_popdiv();
 }
 
 void doIf(){
 	int l1,l2;
+	nextToken();
 	boolExpression();
 	l1 = newLabel();
 	l2 = l1;
@@ -547,6 +562,7 @@ void doIf(){
 	asm_jmpfalse(l1);
 	block();
 	if(token  == 'l'){
+		nextToken();
 		l2 = newLabel();
 		asm_jmp(l2);
 		printf("L%d\n",l1);
@@ -557,7 +573,10 @@ void doIf(){
 }
 
 void doWhile(){
-	int l1 = newLabel(),l2 = newLabel();
+	int l1,l2;
+	nextToken();
+	l1 = newLabel();
+	l2 = newLabel();
 
 	printf("L%d\n",l1);
 	boolExpression();
@@ -566,22 +585,6 @@ void doWhile(){
 	matchString("ENDWHILE");
 	asm_jmp(l1);
 	printf("L%d\n",l2);
-}
-
-void mainBlock(){
-	matchString("BEGIN");
-	prolog();
-	block();
-	matchString("END");
-	epilog();
-}
-
-void prog(){
-	matchString("PROGRAM");
-	header();
-	topDecls();
-	mainBlock();
-	match('.');
 }
 
 void header(){
@@ -610,25 +613,24 @@ void epilog(){
 
 /*Criar uma biblioteca a parte*/
 void doRead(){
-	match('(');
+	nextToken();
+	matchString("(");
 	for(;;){
-		getName();
-		asm_read();
-		newLine();
-		if(lookahead != ',')break;
-		match(',');
+		readVar();
+		if(token != ',')break;
+		nextToken();
 	}
-	match(')');
+	matchString(")");
 }
 
 void doWrite(){
-	match('(');
+	nextToken();
+	matchString("(");
 	for(;;){
 		expression();
 		asm_write();
-		newLine();
-		if(lookahead !=',')break;
-		match(',');
+		if(token !=',')break;
+		nextToken();
 	}
-	match(')');
+	matchString(")");
 }
