@@ -127,7 +127,7 @@ void nextChar();
 void skipWhite();
 
 /*
-*@brief sempre que encontra ponto-e-vírgula avança o cursor de leitura para o próximo token
+*@brief reconhece ponto-e-vírgula
 */
 void semiColon();
 
@@ -279,6 +279,11 @@ void decl();
 *@brief reconhece um identificador
 */
 void readVar();
+
+/*
+*@brief reconhece UM comando
+*/
+void statement();
 
 /*
 *@brief analisa e traduz um bloco de comandos

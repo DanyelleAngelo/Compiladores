@@ -147,7 +147,7 @@ void skipWhite(){
 }
 
 void semiColon(){
-	if(token ==  ';')nextToken();
+	matchString(";");
 }
 
 /*
@@ -353,33 +353,34 @@ void readVar(){
 	nextToken();
 }
 
+void statement(){
+	scan();
+	switch(token){
+		case 'i':
+			doIf();
+			break;
+		case 'w':
+			doWhile();
+			break;
+		case 'W':
+			doWrite();
+			break;
+		case 'R':
+			doRead();
+			break;
+		case 'x':
+			assignment();
+			break;
+	}
+}
+
 void block(){
-	int follow = 0;
-	do{
-		scan();
-		switch(token){
-			case 'i':
-				doIf();
-				break;
-			case 'w':
-				doWhile();
-				break;
-			case 'W':
-				doWrite();
-				break;
-			case 'R':
-				doRead();
-				break;
-			case 'e':
-			case 'l':
-				follow = 1;
-				break;
-			case 'x':
-				assignment();
-				break;
-		}
-		if(!follow)semiColon();
-	}while(!follow);
+	statement();
+	while(token == ';'){
+		nextToken();
+		statement();
+	}
+	scan();
 }
 
 void term(){

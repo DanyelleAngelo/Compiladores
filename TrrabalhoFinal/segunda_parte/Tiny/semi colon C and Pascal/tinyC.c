@@ -147,7 +147,7 @@ void skipWhite(){
 }
 
 void semiColon(){
-	if(token ==  ';')nextToken();
+	matchString(";");
 }
 
 /*
