@@ -6,10 +6,10 @@
 #define SYMTBL_SZ 1000
 
 
-char lookahead,token, *symTbl[SYMTBL_SZ], symType[SYMTBL_SZ],value[MAX_TOKEN+1];
+char lookahead,token,tempchar, *symTbl[SYMTBL_SZ], symType[SYMTBL_SZ],value[MAX_TOKEN+1];
 int nSym, labelCount; 
 
-
+void nextChar_x();
 /* 
 *@brief zera o registrador primário
 */

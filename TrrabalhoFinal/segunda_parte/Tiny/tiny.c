@@ -133,21 +133,40 @@ void asm_write(){
 void init(){
 	labelCount = 0;
 	nSym = 0;
+	tempchar = ' ';
 	//symTbl = calloc(SYMTBL_SZ,sizeof(char));
 	nextChar();
 	nextToken();
 }
 
-void nextChar(){
+void nextChar_x(){
 	lookahead = getchar();
 }
 
-void skipComment(){
-	while(lookahead != '}'){
-		nextChar();
-		if(lookahead == '{')skipComment();
+void nextChar(){
+	if(tempchar != ' '){
+		lookahead = tempchar;
+		tempchar = ' ';
+	}else{
+		nextChar_x();
+		if(lookahead == '/'){
+			tempchar = getchar();
+			if(tempchar == '*'){
+				lookahead = '{';
+				tempchar = ' ';
+			}
+		}	
 	}
-	nextChar();
+}
+
+void skipComment(){
+	do{
+		do{
+			nextChar_x();
+		}while(lookahead != '*');
+		nextChar_x();
+	}while(lookahead !='/');
+	nextChar_x();
 }
 
 void skipWhite(){
