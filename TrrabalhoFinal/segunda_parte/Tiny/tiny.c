@@ -142,8 +142,19 @@ void nextChar(){
 	lookahead = getchar();
 }
 
+void skipComment(){
+	while(lookahead != '}'){
+		nextChar();
+		if(lookahead == '{')skipComment();
+	}
+	nextChar();
+}
+
 void skipWhite(){
-	while (isspace(lookahead))nextChar();	
+	while (isspace(lookahead) || lookahead  == '{'){
+		if(lookahead == '{')skipComment();
+		else nextChar();
+	}	
 }
 
 void semiColon(){

@@ -122,7 +122,16 @@ void init();
 void nextChar();
 
 /*
-*@brief reconhece caractere em branco e avança soo cursior licitando a leitura do próximo
+*@brief trata de comentários simples e comentários aninhados: avança na leitura do próximo
+*caractere até encontrar o delimitador final de umcomentário, se o próximo caractere for o 
+*delimitador inicial de comentarios chama essa rotina recursivamente.
+*/
+void skipComment();
+
+/*
+*@brief reconhece caractere de espaço em branco e delimitador inicial de cometário 
+*e chama as rotinas correspondentes a cada caractere para avançar a posição do cursor de
+*leitura
 */
 void skipWhite();
 
