@@ -24,12 +24,9 @@ void asm_loadvar(char  name,char type){
 	switch(type){
 		case 'b':
 			printf("\tmov al, %c\n",name);
-			printf("\tcbw\n");//convert  byte to word
-			printf("\tcwd\n");//convert word to dword
 			break;
 		case 'w':
 			printf("\tmov ax, %c\n",name);
-			printf("\tcwd\n");
 			break;
 		case 'l':
 			printf("\tmov dx, word ptr [%c+2]\n", name);
@@ -51,6 +48,12 @@ void asm_storevar(char name,char type){
 			break;
 
 	}
+}
+
+void asm_convert(char src,char dst){
+	if(src == dst) return;
+	if(src == 'b')printf("\tcbw\n");//convert byte to word
+	if(dst == 'l')printf("\tcwd\n");//covert word to Dword
 }
 
 void init(){
@@ -190,12 +193,16 @@ char varType(char name){
 	return type;
 }
 
-void loadVar(char name){
-	asm_loadvar(name,varType(name));
+char loadVar(char name){
+	char type = varType(name);
+	asm_loadvar(name,type);
+	return type;
 }
 
-void storeVar(char name){
-	asm_storevar(name,varType(name));
+void storeVar(char name,char srcType){
+	char varType = varType(name);
+	asm_convert(srcType,varType);
+	asm_storevar(name,varType);
 }
 
 void alloc(char name,char type){
@@ -225,15 +232,15 @@ void topDecls(){
 	}
 }
 
-void expression(){
-	loadVar(getName());
+char expression(){
+	return loadVar(getName());
 }
 
 void assignment(){
-	char name = getName();
+	char name = getName(),type;
 	match('=');
-	expression();
-	storeVar(name);
+	type = expression();
+	storeVar(name,type);
 }
 
 void doBlock(){

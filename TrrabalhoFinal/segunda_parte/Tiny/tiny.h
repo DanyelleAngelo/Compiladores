@@ -22,6 +22,11 @@ void asm_loadvar(char  name,char type);
 void asm_storevar(char name,char type);
 
 /*
+*@brief converte de um tipo para outro
+*/
+void asm_convert(char src,char dst);
+
+/*
 *@brief inicia o compilador lendo o primeiro símbolo do programa de entrada
 *aloca espaço e inicializa a tabela de símbolos com 0
 */
@@ -157,14 +162,15 @@ int isVarType(char c);
 char varType(char name);
 
 /*
-*@brief chama procedimento para carregar variável de acordo com seu tipo
+*@brief verifica tipo da variável e chama procedimento para carregar variável de acordo com seu tipo
+*@return tipo da variável
 */
-void loadVar(char name);
+char loadVar(char name);
 
 /*
 *@brief chama procedimento para armazenar variável de acordo com seu tipo
 */
-void storeVar(char name);
+void storeVar(char name,char srcType);
 
 /* 
 *@brief chama a rotina para inserir uma variável na tabela de símbolos e 
@@ -184,8 +190,9 @@ void topDecls();
 
 /*
 *@brief analisa e traduz uma expressão matemática
+*@return tipo da variável carregada
 */
-void expression();
+char expression();
 
 /*
 *@brief analisa e traduz um comando de atribuição
