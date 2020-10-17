@@ -31,6 +31,53 @@ void asm_storevar(char name,char type);
 */
 void asm_convert(char src,char dst);
 
+/* 
+*@brief zera o registrador primário
+*/
+void asm_clear();
+
+/*
+*@brief coloca valor na pilha
+*/
+void asm_push(char type);
+
+/*
+@brief armazena dado em registrador secundário(se o dado for do tipo long usa bx e cx)
+*/
+void asm_pop(char type);
+
+/*
+@brief gera código para trocar registradores primário e secundário
+*/
+void asm_swap(char type);
+
+/* 
+*@briefverifica se os tipos de dois operandos são doferentes,
+*em aso afirmativo verifica qual operando é o menor, e então chama
+*o procedimento de promoção
+*/
+char asm_sametype(char t1, char t2,int order);
+
+/*
+@brief soma valor na pilha com valor no registrador primário
+*/
+char asm_popadd(char t1, char t2);
+
+/* 
+*@brief subtrai do valor da pilha o valor no reg.istrador primário
+*/
+char asm_popsub(char t1, char t2);
+
+/* 
+*@brief multiplica valor no topo da pilha pelo valor no registrador primário
+*/
+char asm_popmul(char t1,char t2);
+
+/*
+@brief divide valor no topo da pilha por valor no registrador primário
+*/
+char asm_popdiv(char t1,char t2);
+
 /*
 *@brief inicia o compilador lendo o primeiro símbolo do programa de entrada
 *aloca espaço e inicializa a tabela de símbolos com 0
@@ -161,6 +208,11 @@ int isRelOp(char c);
 int isVarType(char c);
 
 /*
+*@brief trata operadores unários de sinal
+*/
+char unOp();
+
+/*
 *@brief chama procediment para pegar tipo da variável com base no nome
 *e depois chama a rotina de aviso caso o tipo não seja válido
 *@return tipo da variável 
@@ -201,6 +253,16 @@ void decl();
 void topDecls();
 
 /*
+*@brief analisa e traduz um operação de *,/ e parenteses
+*/
+char factor();
+
+/*
+*@brief analisa e traduz um termo
+*/
+char term();
+
+/*
 *@brief analisa e traduz uma expressão matemática
 *@return tipo da variável carregada
 */
@@ -217,5 +279,24 @@ void assignment();
 */
 void doBlock();
 
+/*
+*@brief reconhece e traduz uma soma
+*/
+char add(char type);
+
+/* 
+*@brief reconhece e traduz uma subtração
+*/
+char subtract(char type);
+
+/*
+*@brief reconhece e traduz uma divisão
+*/
+char divide(char type);
+
+/*
+*@brief reconhece e traduz uma multiplicação
+*/
+char multiply(char type);
 
 #endif
