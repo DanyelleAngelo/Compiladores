@@ -70,7 +70,6 @@ void asm_procepilog();
 */
 void asm_pushparam(char name);
 
-
 /*
 *@brief inicia o compilador lendo o primeiro símbolo do programa de entrada
 *aloca espaço e inicializa a tabela de símbolos com 0
