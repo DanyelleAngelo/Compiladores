@@ -12,9 +12,14 @@ char lookahead,symTbl[SYMTBL_SZ];
 void asm_allocvar(char name, char type);
 
 /*
-*@brief traduz  código para alocação de acordo com o tipo da variável
+*@brief traduz o  código para carregar uma variável de acordo com o seu tipo
 */
 void asm_loadvar(char  name,char type);
+
+/*
+*@brief traduz o  código para carregar uma constante de acordo com o seu tipo
+*/
+void asm_loadconst(long num, char type);
 
 /*
 *@brief traduz  código para armazenamento de acordo com o tipo da variável
@@ -120,14 +125,15 @@ void match(char c);
 
 /*
 *@brief verifca se o nome de um indetificador ou palavra-chave é formado por letras
-*vai salvando cada caractere formador do identificador na variável global value 
+*vai salvando cada caractere formador do identificador
 */
 char getName();
 
 /*
-*@brief verifica se lookahead é um número, vai salvando cada digito do número na variável global value
+*@brief verifica se lookahead é um número, vai salvando cada digito do número e depois de
+*formad retorna o número.
 */
-char getNum();
+long getNum();
 
 /*
 *@brief verifica se o caractere analisado é um operador de soma ou subtração
@@ -166,6 +172,12 @@ char varType(char name);
 *@return tipo da variável
 */
 char loadVar(char name);
+
+/*
+*@brief define um tipo para uma constante numérica e a carrega no registrador primário
+*@return tipo da constante
+*/
+char loadNum(long num);
 
 /*
 *@brief chama procedimento para armazenar variável de acordo com seu tipo

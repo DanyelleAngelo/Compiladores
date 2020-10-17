@@ -35,6 +35,21 @@ void asm_loadvar(char  name,char type){
 	}
 }
 
+void asm_loadconst(long num, char type){
+	switch (type) {
+		case 'b':
+			printf("\tmov al, %d\n", (int) num);
+			break;
+		case 'w':
+			printf("\tmov ax, %d\n", (int) num);
+			break;
+		case 'l':
+			printf("\tmov dx, %lu\n", num >> 16);//coloca em dx os 16 bits mais significativos
+			printf("\tmov ax, %lu\n", num & 0xFFFF);//pegas os  16 bit menos significativos
+			break;
+		}
+}
+
 void asm_storevar(char name,char type){
 	switch(type){
 		case  'b':
@@ -158,11 +173,14 @@ char getName(){
 	return name;
 }
 
-char getNum(){
-	char num;
+long getNum(){
+	long num =0;
 	if(!isdigit(lookahead)) expected("Integer");
-	num = lookahead;
-	nextChar();
+	while(isdigit(lookahead)){
+		num *=10;
+		num += lookahead - '0';
+		nextChar();
+	}
 	skipWhite();
 	return num;
 }
@@ -199,10 +217,19 @@ char loadVar(char name){
 	return type;
 }
 
+char loadNum(long num){
+	char type;
+	if(num >=-128 && num<=127)type='b';
+	else if(num>=-32768 && num<=32767)type='w';
+	else type='l';
+	asm_loadconst(num,type);
+	return type;
+}
+
 void storeVar(char name,char srcType){
-	char varType = varType(name);
-	asm_convert(srcType,varType);
-	asm_storevar(name,varType);
+	char type = varType(name);
+	asm_convert(srcType,type);
+	asm_storevar(name,type);
 }
 
 void alloc(char name,char type){
@@ -233,7 +260,10 @@ void topDecls(){
 }
 
 char expression(){
-	return loadVar(getName());
+	char type;
+	if(isalpha(lookahead))type=loadVar(getName());
+	else type = loadNum(getNum());
+	return type;
 }
 
 void assignment(){
