@@ -5,8 +5,11 @@
 
 int main(){
 	init();
-	header();
 	topDecls();
-	epilog();
+	match('B');
+	newLine();
+	doBlock();
+
+	dumpTable();
 	return 0;
 }

@@ -4,82 +4,28 @@
 #define SYMTBL_SZ 26
 #define PARAMS_SZ 26
 
-
 char lookahead,symTbl[SYMTBL_SZ];
-int params[PARAMS_SZ],nParams,base;
-
-void asm_allocvar(char name);
-
-/* 
-*@brief carrega uma variável no registrador primário
-*/
-void asm_loadvar(char name);
 
 /*
-*@brief armazena registrador primário em variável
+*@brief gera código para armazenamento de variável
 */
-void asm_store(char name);
+void asm_allocvar(char name, char type);
 
 /*
-*@brief traduz retorno do procedimento
+*@brief traduz  código para alocação de acordo com o tipo da variável
 */
-void asm_return();
+void asm_loadvar(char  name,char type);
 
 /*
-*@brief calcula o deslocamento do parametro
+*@brief traduz  código para armazenamento de acordo com o tipo da variável
 */
-int asm_offsetpar(int par);
-
-/*
-*@brief traduz uma chamada de procedimento
-*/
-void asm_call(char name);
-
-/*
-*@brief carrega parametro em registrador primario
-*/
-void asm_loadparam(int par);
-
-/*
-*@brief "copia" valor de registrador primário para parametr
-*/
-void asm_storeparam(int par);
-
-/*
-*@brief coloca registrador primario na pilha
-*/
-void asm_push();
-
-/*
-*@brief ajusta o ponteiro da pilha acima
-*/
-void asm_cleanstack(int bytes);
-
-/*
-*@brief escreve o prólogo para um procedimento
-*/
-void asm_procprolog(char name,int nLocals);
-
-/*
-*@brief escreve o epílogo para um procedimento
-*/
-void asm_procepilog();
-
-/*
-*@brief coloca parâmetros na pilha
-*/
-void asm_pushparam(char name);
+void asm_storevar(char name,char type);
 
 /*
 *@brief inicia o compilador lendo o primeiro símbolo do programa de entrada
 *aloca espaço e inicializa a tabela de símbolos com 0
 */
 void init();
-
-/*
-*@brief reinicializa a lista de parametros formais a cada  procedimento
-*/
-void clearParams();
 
 /*
 *@brief lê próximo caractere
@@ -132,12 +78,17 @@ void duplicated(char name);
 void unrecognized(char name);
 
 /*
-*@brief identificador não é do "tipo" variável
+*@brief avisa a respeito de um identificador que nã é variável
 */
-void notVar(char name);
+void notVar(char  name);
 
 /*
-*@brief retorna a "classe" de um identificador
+*@brief imprime tabela de símbolos
+*/
+void dumpTable();
+
+/*
+*@brief retorna o "tipo" de um identificador
 */
 char symType(char name);
 
@@ -147,31 +98,15 @@ char symType(char name);
 char inTable(char name);
 
 /*
-*@brief chama inTable para verificar se a variável já foi declarada, se sim chama duplicate para exibir
-*mensagem e encerrar o programa;
-*se não adiciona o tipo da variável na tabela de símbolos na posição referente a variável
+*@brief verifica se um identificador já foi declarado
+*/
+void checkedUp(char name);
+
+/*
+*@brief chama checkedUp para verificar se a variável já foi declarada, 
+*se não tiver sido adiciona o tipo da variável na tabela de símbolos na posição referente a variável
 */
 void addSymbol(char name, char type);
-
-/*
-*@brief retorna um número indicando a posição do parametro 
-*/
-int paramNum(char name);
-
-/*
-*@brief verifica se name é um  parametro
-*/
-int isParam(char name);
-
-/*
-*@brief adiciona parametro a tabela de parametros
-*/
-void addParam(char name);
-
-/* 
-*@brief verifica se o identificador referenciado já foi declarado e seu tipo
-*/
-void checkVar(char name);
 
 /*
 *@brief verifica se a entrada dá match com o esperado, chamand expected c.c.
@@ -210,71 +145,42 @@ int isOrOp(char c);
 int isRelOp(char c);
 
 /*
-*@brief reconhece declarações de variáveis (em uma ou mais linhas)
-*procedimento e do programa principal.
+*@brief reconhece um tipo válido de variável
 */
-void topDecls();
+int isVarType(char c);
 
 /*
-*@brief verifica a declaração de uma variável e chama as rotinas de adição na tabela de símbolos e alocação 
-*de espaço na memória
+*@brief chama procediment para pegar tipo da variável com base no nome
+*e depois chama a rotina de aviso caso o tipo não seja válido
+*@return tipo da variável 
+*/
+char varType(char name);
+
+/*
+*@brief chama procedimento para carregar variável de acordo com seu tipo
+*/
+void loadVar(char name);
+
+/*
+*@brief chama procedimento para armazenar variável de acordo com seu tipo
+*/
+void storeVar(char name);
+
+/* 
+*@brief chama a rotina para inserir uma variável na tabela de símbolos e 
+*depois a de alocação de memória
+*/
+void alloc(char name, char type);
+
+/*
+*@brief  analiza e traduz a declaração de uma variável.
 */
 void decl();
 
-/* 
-*@brief analisa e traduz DECLARAÇÕES locais
-*@return númer de variáveis locais dentro de um procedimento
-*/
-int locDecls();
-
 /*
-*@brief analisa e traduz UMA declaração local
+*@brief analiza e traduz declaraçẽs globais
 */
-void locDecl();
-
-/*
-*@brief analisa e traduz um bloco
-*/
-void doBlock();
-
-/*
-*@brief processa/adiciona na tabela de parametros um parametro formal(na declaração do procedimento eles são chamados assim)
-*/
-void formalParam();
-
-/*
-*@brief processa uma lista de parametros formais de um procedimento,
-*a lista  pode ser vazia ou não, caso seja o último caso é chamada
-*a rotina de análise de um parametro.
-*/
-void formalList();
-
-/*
-*@brief processa um parametro de chamada ("parametro verdadeiro")
-*/
-void param();
-
-/*
-*@brief processa uma lista de parametros verdadeiros
-*@return números de bytes da pilha que devem ser limpos ao término do
-*proedimeto
-*/
-int paramList();
-
-/*
-*@brief processa uma chamada de procedimento
-*/
-void doCallProc(char name);
-
-/*
-*@brief analisa e traduz uma declaração de procedimento
-*/
-void doProc();
-
-/*
-*@brief analisa e traduz um bloco begin
-*/
-void beginBlock();
+void topDecls();
 
 /*
 *@brief analisa e traduz uma expressão matemática
@@ -285,32 +191,12 @@ void expression();
 *@brief analisa e traduz um comando de atribuição
 *associado a uma variavel
 */
-void assignment(char name);
+void assignment();
 
 /*
-*@brief analisa e traduz um comando de atribuição ou chamada
-*de procedimento olhando o tipo do identificador na tabela de símbolos
+*@brief analisa e traduz um blocode comandos
 */
-void assignOrCall();
+void doBlock();
 
-/*
-*@brief analisa e traduz o blco principal do programa
-*/
-void doMain();
-
-/*
-*@brief emite o código inicial necessário para o montador
-*/
-void header();
-
-/*
-*@brief emite o código que identifica o programa principal para retornar ao sistema operacional
-*/
-void prolog();
-
-/*
-*@brief emite o código que identifica o programa principal para a inicialização
-*/
-void epilog();
 
 #endif
