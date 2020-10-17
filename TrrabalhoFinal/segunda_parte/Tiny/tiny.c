@@ -36,11 +36,13 @@ int asm_offsetpar(int par){
 }
 
 void asm_loadparam(int par){
-	printf("\tmov ax, word ptr [bp+%d]\n", asm_offsetpar(par));
+	printf("\tmov bx, word ptr [bp+%d]\n", asm_offsetpar(par));
+	printf("\tmov ax, word ptr[bx]\n");
 }
 
 void asm_storeparam(int par){
-	printf("\tmov word ptr [bp+%d], ax\n", asm_offsetpar(par));
+	printf("\tmov bx, word ptr [bp+%d]\n", asm_offsetpar(par));
+	printf("\tmov word ptr[bx],ax\n");
 }
 
 void asm_push(){
@@ -61,6 +63,25 @@ void asm_procepilog(){
 	printf("\tpop bp\n");
 	printf("\tret\n");
 }
+
+void asm_pushparam(char name){
+	switch (symType(name)) {
+		case 'f':
+			printf("\tpush word ptr [bp+%d]\n",
+			asm_offsetpar(paramNum(name)));
+			break;
+		case 'v':
+			printf("\tmov ax, offset %c\n", name);
+			asm_push();
+			break;
+		default:
+			printf("Identifier %c cannot be used here!", name);
+			exit(1);
+			break;
+		}
+
+}
+
 
 void init(){
 	int i;
@@ -256,8 +277,7 @@ void formalList(){
 }
 
 void param(){
-	expression();
-	asm_push();
+	asm_pushparam(getName()); 
 }
 
 int paramList(){
