@@ -6,7 +6,7 @@
 
 
 char lookahead,symTbl[SYMTBL_SZ];
-int params[PARAMS_SZ],nParams;
+int params[PARAMS_SZ],nParams,base;
 
 void asm_allocvar(char name);
 
@@ -58,7 +58,7 @@ void asm_cleanstack(int bytes);
 /*
 *@brief escreve o prólogo para um procedimento
 */
-void asm_procprolog(char name);
+void asm_procprolog(char name,int nLocals);
 
 /*
 *@brief escreve o epílogo para um procedimento
@@ -220,6 +220,17 @@ void topDecls();
 *de espaço na memória
 */
 void decl();
+
+/* 
+*@brief analisa e traduz DECLARAÇÕES locais
+*@return númer de variáveis locais dentro de um procedimento
+*/
+int locDecls();
+
+/*
+*@brief analisa e traduz UMA declaração local
+*/
+void locDecl();
 
 /*
 *@brief analisa e traduz um bloco

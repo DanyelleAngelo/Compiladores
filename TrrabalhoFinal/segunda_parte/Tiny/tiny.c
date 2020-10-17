@@ -31,35 +31,35 @@ void asm_call(char name){
 
 int asm_offsetpar(int par){
 	int offset;
-	offset = 4 + 2 *(nParams - par);
+	offset = 4 + 2 *(base - par);
 	return offset;	
 }
 
 void asm_loadparam(int par){
-	printf("\tmov bx, word ptr [bp+%d]\n", asm_offsetpar(par));
-	printf("\tmov ax, word ptr[bx]\n");
+	printf("\tmov ax, word ptr [bp%+d]\n", asm_offsetpar(par));
 }
 
 void asm_storeparam(int par){
-	printf("\tmov bx, word ptr [bp+%d]\n", asm_offsetpar(par));
-	printf("\tmov word ptr[bx],ax\n");
+	printf("\tmov word ptr [bp+%+d], ax\n", asm_offsetpar(par));
 }
 
 void asm_push(){
-	printf("\tpush ax\n");
+	printf("\tret\n");
 }
 
 void asm_cleanstack(int bytes){
 	if(bytes >0)printf("\tadd sp, %d\n",bytes);
 }
 
-void asm_procprolog(char name){
+void asm_procprolog(char name,int nLocals){
 	printf("%c:\n", name);
 	printf("\tpush bp\n");
 	printf("\tmov bp, sp\n");
+    printf("\tsub sp, %d\n", (nLocals*2));
 }
 
 void asm_procepilog(){
+	printf("\tmov sp,bp\n");
 	printf("\tpop bp\n");
 	printf("\tret\n");
 }
@@ -252,6 +252,22 @@ void decl(){
 	asm_allocvar(getName());
 }
 
+int locDecls(){
+	int i=0;
+	while(lookahead == 'v'){
+		locDecl();
+		i++;
+		newLine();
+	}
+	return i;
+}
+
+void locDecl(){
+	match('v');
+	addParam(getName());
+	newLine();
+}
+
 void doBlock(){
 	while(lookahead !='e'){
 		assignOrCall();
@@ -266,7 +282,6 @@ void formalParam(){
 void formalList(){
 	match('(');
 	if(lookahead !=')'){
-		//não é uma lista vazia
 		formalParam();
 		while(lookahead == ','){
 			match(',');
@@ -274,10 +289,16 @@ void formalList(){
 		}
 	}
 	match(')');
+	newLine();
+	base = nParams;
+	/* parâmetros fictícios para considerar
+	o endereço de retorno e o antigo valor de BP*/
+	nParams+=2;
 }
 
 void param(){
-	asm_pushparam(getName()); 
+	expression();
+	asm_push();
 }
 
 int paramList(){
@@ -302,13 +323,15 @@ void doCallProc(char name){
 }
 
 void doProc(){
+	int nLocals;
 	char name;
 	match('p');
 	name =getName();
+	addSymbol(name,'p');
 	formalList();
 	newLine();
-	addSymbol(name,'p');
-	asm_procprolog(name);
+	nLocals = locDecls();
+	asm_procprolog(name,nLocals);
 	beginBlock();
 	asm_procepilog();
 	clearParams();
