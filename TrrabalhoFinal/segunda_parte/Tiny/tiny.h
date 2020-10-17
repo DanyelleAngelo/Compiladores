@@ -1,10 +1,12 @@
 #ifndef TINY_H
 #define TINY_H
 
-#define SYMTBL_SZ 1000
+#define SYMTBL_SZ 26
+#define PARAMS_SZ 26
 
 
 char lookahead,symTbl[SYMTBL_SZ];
+int params[PARAMS_SZ],nParams;
 
 void asm_allocvar(char name);
 
@@ -18,13 +20,61 @@ void asm_loadvar(char name);
 */
 void asm_store(char name);
 
+/*
+*@brief traduz retorno do procedimento
+*/
 void asm_return();
+
+/*
+*@brief calcula o deslocamento do parametro
+*/
+int asm_offsetpar(int par);
+
+/*
+*@brief traduz uma chamada de procedimento
+*/
+void asm_call(char name);
+
+/*
+*@brief carrega parametro em registrador primario
+*/
+void asm_loadparam(int par);
+
+/*
+*@brief "copia" valor de registrador primário para parametr
+*/
+void asm_storeparam(int par);
+
+/*
+*@brief coloca registrador primario na pilha
+*/
+void asm_push();
+
+/*
+*@brief ajusta o ponteiro da pilha acima
+*/
+void asm_cleanstack(int bytes);
+
+/*
+*@brief escreve o prólogo para um procedimento
+*/
+void asm_procprolog(char name);
+
+/*
+*@brief escreve o epílogo para um procedimento
+*/
+void asm_procepilog();
 
 /*
 *@brief inicia o compilador lendo o primeiro símbolo do programa de entrada
 *aloca espaço e inicializa a tabela de símbolos com 0
 */
 void init();
+
+/*
+*@brief reinicializa a lista de parametros formais a cada  procedimento
+*/
+void clearParams();
 
 /*
 *@brief lê próximo caractere
@@ -82,7 +132,7 @@ void unrecognized(char name);
 void notVar(char name);
 
 /*
-*@brief retorna o "tipo" de um identificador
+*@brief retorna a "classe" de um identificador
 */
 char symType(char name);
 
@@ -97,6 +147,21 @@ char inTable(char name);
 *se não adiciona o tipo da variável na tabela de símbolos na posição referente a variável
 */
 void addSymbol(char name, char type);
+
+/*
+*@brief retorna um número indicando a posição do parametro 
+*/
+int paramNum(char name);
+
+/*
+*@brief verifica se name é um  parametro
+*/
+int isParam(char name);
+
+/*
+*@brief adiciona parametro a tabela de parametros
+*/
+void addParam(char name);
 
 /* 
 *@brief verifica se o identificador referenciado já foi declarado e seu tipo
@@ -157,6 +222,35 @@ void decl();
 void doBlock();
 
 /*
+*@brief processa/adiciona na tabela de parametros um parametro formal(na declaração do procedimento eles são chamados assim)
+*/
+void formalParam();
+
+/*
+*@brief processa uma lista de parametros formais de um procedimento,
+*a lista  pode ser vazia ou não, caso seja o último caso é chamada
+*a rotina de análise de um parametro.
+*/
+void formalList();
+
+/*
+*@brief processa um parametro de chamada ("parametro verdadeiro")
+*/
+void param();
+
+/*
+*@brief processa uma lista de parametros verdadeiros
+*@return números de bytes da pilha que devem ser limpos ao término do
+*proedimeto
+*/
+int paramList();
+
+/*
+*@brief processa uma chamada de procedimento
+*/
+void doCallProc(char name);
+
+/*
 *@brief analisa e traduz uma declaração de procedimento
 */
 void doProc();
@@ -175,7 +269,13 @@ void expression();
 *@brief analisa e traduz um comando de atribuição
 *associado a uma variavel
 */
-void assignment();
+void assignment(char name);
+
+/*
+*@brief analisa e traduz um comando de atribuição ou chamada
+*de procedimento olhando o tipo do identificador na tabela de símbolos
+*/
+void assignOrCall();
 
 /*
 *@brief analisa e traduz o blco principal do programa
