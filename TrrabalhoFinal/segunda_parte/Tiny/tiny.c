@@ -6,168 +6,49 @@
 
 #include "tiny.h"
 
-char *kwlist[KWLIST_SZ] = {"IF","ELSE","ENDIF","WHILE","ENDWHILE","VAR","END","READ","WRITE"};
-char kwcode[KWLIST_SZ+1] = "ileweveRW";
-
-void asm_clear(){
-	printf("\txor ax, ax\n");
+void asm_allocvar(char name){
+	if(inTable(name))duplicated(name);
+	addSymbol(name,'v');
+	printf("%c:\tdw 0\n",name);
 }
 
-void asm_negative(){
-	printf("\tneg ax\n");
+void asm_loadvar(char name){
+	if(!inTable(name))undefined(name);
+	printf("\tmov ax, word ptr %c\n", name);
 }
 
-void asm_loadconst(char *val){
-	printf("\tmov ax, %s\n", val);
+void asm_store(char name){
+	printf("\tmov word ptr %c, ax\n",name);
 }
 
-void asm_loadvar(char *name){
-	if(!intable(name))undefined(name);
-	printf("\tmov ax, word ptr %s\n", name);
-}
 
-void asm_push(){
-	printf("\tpush ax\n");
-}
+void asm_return(){
 
-void asm_popadd(){
-	printf("\tpop bx\n");
-	printf("\tadd ax, bx\n");
-}
-
-void asm_popsub(){
-	printf("\tpop bx\n");
-	printf("\tsub ax, bx\n");
-	printf("\tneg ax\n");
-}
-
-void asm_popmul(){
-	printf("\tpop bx\n");
-	printf("\timul bx\n");
-}
-
-void asm_popdiv(){
-	printf("\tpop bx\n");
-	printf("\txchg ax, bx\n");
-	printf("\tcwd\n");
-	printf("\tidiv bx\n");
-}
-
-void asm_store(char *name){
-	printf("\tmov word ptr %s, ax\n",name);
-}
-
-void asm_not(){
-	printf("\tnot ax\n");
-}
-
-void asm_popand(){
-	printf("\tpop bx\n");
-	printf("\tand ax, bx\n");
-}
-
-void asm_popor(){
-	printf("\tpop bx\n");
-	printf("\tor ax, bx\n");	
-}
-
-void asm_popxor(){
-	printf("\tpop bx\n");
-	printf("\txor ax, bx\n");
-}
-
-void asm_popcompare(){
-	printf("\tpop bx\n");
-	printf("\tcmp bx, ax\n");	
-}
-
-void asm_relop(char op){
-	char *jump;
-	int l1 = newLabel(),l2 = newLabel();
-
-	switch(op){
-		case '=':
-			jump = "je";
-			break;
-		case '#':
-			jump = "jne";
-			break;
-		case '<':
-			jump = "jl";
-			break;
-		case '>':
-			jump = "jg";
-			break;
-		case 'L':
-			jump = "jle";
-			break;
-		case 'G':
-			jump = "jge";
-			break;
-	}
-	printf("\t%s L%d\n",jump,l1);
-	printf("\txor ax, ax\n");
-	printf("\tjmp L%d\n",l2);
-	printf("L%d:\n",l1);
-	printf("\tmov ax, -1\n");
-	printf("L%d:\n",l2);
-}
-
-void asm_jmp(int label){
-	printf("\tjmp L%d\n", label);
-}
-
-void asm_jmpfalse(int label){
-	printf("\tjz L%d\n", label);
-}
-
-void asm_read(){
-	printf("\tcall READ\n");
-	asm_store(value);
-}
-
-void asm_write(){
-	printf("\tcall WRITE\n");
 }
 
 void init(){
-	labelCount = 0;
-	nSym = 0;
-	//symTbl = calloc(SYMTBL_SZ,sizeof(char));
+	int i;
+	for(i=0;i< SYMTBL_SZ;i++)symTbl[i]=' ';
 	nextChar();
-	nextToken();
+	skipWhite();
 }
 
 void nextChar(){
 	lookahead = getchar();
 }
 
-void skipComment(){
-	while(lookahead != '}'){
-		nextChar();
-		if(lookahead == '{')skipComment();
-	}
-	nextChar();
-}
 
 void skipWhite(){
-	while (isspace(lookahead) || lookahead  == '{'){
-		if(lookahead == '{')skipComment();
-		else nextChar();
+	while (lookahead == ' ' || lookahead  == '\n'){
+		nextChar();
 	}	
 }
 
-void semiColon(){
-	if(token ==  ';')nextToken();
-}
-
-/*
 void newLine(){
 	while(lookahead == '\n'){
 		nextChar();
-		skipWhite();
 	}
-}*/
+}
 
 void error(char *s){
 	fprintf(stderr, "Error: %s\n", s);
@@ -183,13 +64,47 @@ void expected(char *s){
 	exit(1);
 }
 
-int newLabel(){
-	return labelCount++;
+void undefined(char name){
+	fprintf(stderr, "Error: Undefined identifier %c\n", name);
+	exit(1);
 }
 
-/*void match(char c){
+void duplicated(char name){
+	fprintf(stderr, "Error: Duplicated identifier %c\n", name);
+	exit(1);
+}
+
+void unrecognized(char name){
+	fprintf(stderr, "Error: Unrecognized keyword %c\n", name);
+	exit(1);
+}
+
+void notVar(char name){
+	fprintf(stderr, "Error: %c is not a variable\n", name);
+	exit(1);
+}
+
+char symType(char name){
+	return symTbl[name - 'A'];
+}
+
+char inTable(char name){
+	return(symTbl[name-'A']!= ' ');
+}
+
+void addSymbol(char name, char type){
+	if (inTable(name))duplicated(name);
+	symTbl[name - 'A'] = type;
+
+}
+
+void checkvar(char name){
+	if (!inTable(name))undefined(name);
+	if (symType(name) != 'v')notVar(name);
+}
+
+void match(char c){
 	char s[2];
-	newLine();
 	if(lookahead != c){
 		s[0] = c;
 		s[1] =  '\0';
@@ -197,73 +112,24 @@ int newLabel(){
 	}
 	nextChar();
 	skipWhite();
-}*/
-
-void matchString(char *s){
-	if(strcmp(value,s)!=0)expected(s);
-	nextToken();
 }
 
-int lookaheadUp(char *s, char *list[], int size){
-	int i;
-	for(i=0;i<size;i++){
-		if(strcmp(list[i],s)==0)return i;
-	}
-	return -1;
-}
-
-int locate(char *name){
-	return lookaheadUp(name,symTbl,nSym);
-}
-
-void scan(){
-	int kw;
-	if(token == 'x'){
-		kw = lookaheadUp(value,kwlist,KWLIST_SZ);
-		if(kw >=0)token = kwcode[kw];
-	} 
-}
-
-void getName(){
-	int i;
-	skipWhite();
-
+char getName(){
+	char name;
 	if(!isalpha(lookahead)) expected("Identifier or Keyword");
-	for(i=0;isalnum(lookahead) && i<MAX_TOKEN;i++){
-		value[i] = toupper(lookahead);
-		nextChar();
-	}
-	value[i] =  '\0';
-	token = 'x';
-}
-
-void getNum(){
-	skipWhite();
-	int i;
-
-	if(!isdigit(lookahead)) expected("Integer");
-
-	for(i=0;isdigit(lookahead) && i<MAX_TOKEN;i++){
-		value[i] =  lookahead;
-		nextChar();
-	}
-	value[i] = '\0';
-	token  = '#';
-}
-
-void getOp(){
-	skipWhite();
-	token = lookahead;
-	value[0] = lookahead;
-	value[1] =  '\0';
+	name  = toupper(lookahead);
 	nextChar();
+	skipWhite();
+	return name;
 }
 
-void nextToken(){
+char getNum(){
+	char num;
+	if(!isdigit(lookahead)) expected("Integer");
+	num = lookahead;
+	nextChar();
 	skipWhite();
-	if(isalpha(lookahead))getName();
-	else if(isdigit(lookahead))getNum();
-	else getOp();	
+	return num;
 }
 
 int isAddOp(char c){
@@ -282,326 +148,78 @@ int isRelOp(char c){
 	return (strchr("=#<>",c)!=NULL);
 }
 
-void undefined(char *name){
-	fprintf(stderr, "Error: Undefinied identifier %s\n",name);
-	exit(1);
-}
-
-void checkIdent(){
-	if(token != 'x')expected("Identifier");
-}
-
-void  duplicated(char *name){
-	fprintf(stderr, "Duplicated variable name: %s\n",name );
-	exit(1);
-}
-
-int intable(char *name){
-	if(lookaheadUp(name,symTbl,nSym)<0)return 0;
-	return 1;
-}
-
-void checkTable(char *name){
-	if (!intable(name))undefined(name);
-}
-
-void checkedUp(char *name){
-	if(intable(name))duplicated(name);
-}
-
-void addSymbol(char *name,char type){
-	char *newSym;
-	checkedUp(name);
-	if(nSym >= SYMTBL_SZ){
-		fatal("Symbol table full!");
-	}
-	newSym = (char*)malloc(sizeof(char)*(strlen(name)+1));
-	if(newSym == NULL)fatal("Out of memory!");
-	strcpy(newSym,name);
-	symTbl[nSym]=newSym;
-	nSym++;
-}
-
-void allocVar(char *name, int value){
-	/*int value = 0, signal = 1;
-
-	if(lookahead == '='){
-		match('=');
-		newLine();	
-		if(lookahead == '-'){
-			match('-');
-			signal = -1;
-		}
-		value = signal * getNum();
-	}*/
-	printf("%s:\tdw %d\n",name,value);
-	
-}
 
 void topDecls(){
-	scan();
-	while(token == 'v'){
-		do{
-			decl();
-		}while(token == ',');
-		semiColon();
+	while(lookahead != '.'){
+		switch(lookahead){
+			case 'v':
+				decl();
+				break;
+			case 'p':
+				doProc();
+				break;
+			case 'P':
+				doMain();
+				break;
+			default:
+				unrecognized(lookahead);
+				break;
+		}
+		newLine();
 	}
 }
 
 void decl(){
-	nextToken();
-	if(token !='x')expected("Variable name");
-	checkedUp(value);
-	addSymbol(value,'v');
-	allocVar(value,0);
-	nextToken();
+	match('v');
+	asm_allocvar(getName());
 }
 
-void readVar(){
-	checkIdent();
-	checkTable(value);
-	asm_read();
-	nextToken();
-}
-
-void block(){
-	int follow = 0;
-	do{
-		scan();
-		switch(token){
-			case 'i':
-				doIf();
-				break;
-			case 'w':
-				doWhile();
-				break;
-			case 'W':
-				doWrite();
-				break;
-			case 'R':
-				doRead();
-				break;
-			case 'e':
-			case 'l':
-				follow = 1;
-				break;
-			case 'x':
-				assignment();
-				break;
-		}
-		if(!follow)semiColon();
-	}while(!follow);
-}
-
-void term(){
-	factor();
-	while(isMulOp(token)){
-		asm_push();
-		switch(token){
-			case '*':
-				multiply();
-				break;
-			case '/':
-				divide();
-				break;
-		}
+void doBlock(){
+	while(lookahead !='e'){
+		assignment();
+		newLine();
 	}
+}
+
+void doProc(){
+	char name;
+	match('p');
+	name =getName();
+	newLine();
+	if(inTable(name))duplicated(name);
+	addSymbol(name,'p');
+	printf("%c:\n",name);
+	beginBlock();
+	asm_return();
+}
+
+void beginBlock(){
+	match('b');
+	newLine();
+	doBlock();
+	match('e');
+	newLine();
 }
 
 void expression(){
-	if(isAddOp(token))asm_clear();
-	else term();
-
-	while(isAddOp(token)){
-		asm_push();
-		switch(token){
-			case '+':
-				add();
-				break;
-			case '-':
-				subtract();
-				break;
-		}
-	}
+	asm_loadvar(getName());
 }
-
-void factor(){
-	if(token == '('){
-		nextToken();
-		boolExpression();
-		matchString(")");
-	}else{
-		if(token == 'x')asm_loadvar(value);
-		else if(token == '#')asm_loadconst(value);
-		else expected("Math Factor");
-		nextToken();
-	}
-}
-
-/*void negFactor(){
-	match('-');
-	if(isdigit(lookahead)){
-		asm_loadconst(-getNum());
-	}else{
-		factor();
-		asm_negative();
-	}
-}
-
-void firstFactor(){
-	newLine();
-	switch(lookahead){
-		case '+':
-			match('+');
-			factor();
-			break;
-		case '-':
-			match('-');
-			factor();
-			break;
-		default:
-			factor();
-			break;
-	}
-}*/
 
 void assignment(){
-	char name[MAX_TOKEN+1];
-	strcpy(name,value);
-	checkTable(name);
-	nextToken();
-	matchString("=");
-	boolExpression();
+	char name  = getName();
+	match('=');
+	expression();
 	asm_store(name);
 }
 
-void relation(){
-	char op;
-	expression();
-	if(isRelOp(token)){
-		op = token;
-		nextToken();
-		if(op == '<'){
-			if(token == '>'){
-				nextToken();
-				op = '#';
-			}else if(token == '='){
-				nextToken();;
-				op = 'L';
-			}
-		}else if(op == '>' && token == '='){
-			nextToken();
-			op = 'G';
-		}
-		asm_push();
-		expression();
-		asm_popcompare();
-		asm_relop(op);
-	}
-}
-
-void notFactor(){
-	if(token == '!'){
-		nextToken();
-		relation();
-		asm_not();
-	}else relation();
-}
-
-void boolTerm(){
-	notFactor();
-	while(token == '&'){
-		asm_push();
-		nextToken();
-		notFactor();
-		asm_popand();
-	}
-}
-
-void boolExpression(){
-	boolTerm();
-	while(isOrOp(token)){
-		asm_push();
-		switch(token){
-			case '|':
-				boolOr();
-				break;
-			case '~':
-				boolXor();
-				break;
-		}
-	}
-}
-
-void boolOr(){
-	nextToken();
-	boolTerm();
-	asm_popor();
-}
-
-void boolXor(){
-	nextToken();
-	boolTerm();
-	asm_popxor();
-}
-
-void add(){
-	nextToken();
-	term();
-	asm_popadd();
-}
-
-void subtract(){
-	nextToken();
-	term();
-	asm_popsub();
-}
-
-void multiply(){
-	nextToken();
-	factor();
-	asm_popmul();
-}
-
-void divide(){
-	nextToken();
-	factor();
-	asm_popdiv();
-}
-
-void doIf(){
-	int l1,l2;
-	nextToken();
-	boolExpression();
-	l1 = newLabel();
-	l2 = l1;
-
-	asm_jmpfalse(l1);
-	block();
-	if(token  == 'l'){
-		nextToken();
-		l2 = newLabel();
-		asm_jmp(l2);
-		printf("L%d\n",l1);
-		block();
-	}
-	printf("L%d\n",l2);
-	matchString("ENDIF");
-}
-
-void doWhile(){
-	int l1,l2;
-	nextToken();
-	l1 = newLabel();
-	l2 = newLabel();
-
-	printf("L%d\n",l1);
-	boolExpression();
-	asm_jmpfalse(l2);
-	block();
-	matchString("ENDWHILE");
-	asm_jmp(l1);
-	printf("L%d\n",l2);
+void doMain(){
+	char name;
+	match('P');
+	name = getName();
+	newLine();
+	if(inTable(name))duplicated(name);
+	prolog();
+	beginBlock();
 }
 
 void header(){
@@ -626,28 +244,4 @@ void epilog(){
 	printf("\tint 21h\n");
 	printf("PROG ends\n");
 	printf("\tend MAIN\n");
-}
-
-/*Criar uma biblioteca a parte*/
-void doRead(){
-	nextToken();
-	matchString("(");
-	for(;;){
-		readVar();
-		if(token != ',')break;
-		nextToken();
-	}
-	matchString(")");
-}
-
-void doWrite(){
-	nextToken();
-	matchString("(");
-	for(;;){
-		expression();
-		asm_write();
-		if(token !=',')break;
-		nextToken();
-	}
-	matchString(")");
 }
