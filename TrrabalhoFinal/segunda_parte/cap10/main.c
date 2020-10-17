@@ -5,11 +5,7 @@
 
 int main(){
 	init();
-	topDecls();
-	match('B');
-	newLine();
-	doBlock();
-
-	dumpTable();
+	prog();
+	if(lookahead != '\n')fatal("Unexpected data after \'.\'");
 	return 0;
 }
