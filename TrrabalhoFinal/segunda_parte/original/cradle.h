@@ -25,6 +25,11 @@ void error(char *s);
 void fatal(char *s);
 
 /*
+*@brief chamada para exibir mensagem sobre uma entrada esperada 
+*/
+void expected(char *s);
+
+/*
 *@brief verifica se a entrada dá match com o esperado, chamand expected c.c.
 */
 void match(char c);
