@@ -24,9 +24,12 @@ void asm_loadvar(char  name,char type){
 	switch(type){
 		case 'b':
 			printf("\tmov al, %c\n",name);
+			printf("\tcbw\n");//convert  byte to word
+			printf("\tcwd\n");//convert word to dword
 			break;
 		case 'w':
 			printf("\tmov ax, %c\n",name);
+			printf("\tcwd\n");
 			break;
 		case 'l':
 			printf("\tmov dx, word ptr [%c+2]\n", name);
