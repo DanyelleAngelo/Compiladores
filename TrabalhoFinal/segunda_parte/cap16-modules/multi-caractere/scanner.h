@@ -20,12 +20,14 @@ void match(char c);
 
 
 /*
-*@brief verifica se o caractere analisado é um operador de soma ou subtração
+*@brief verifica se o caractere analisado é um operador de 
+*soma, subtração,"OU"ou"UOU-exclusivo" 
 */
 int isAddOp(char c);
 
 /*
-*@brief verifica se o caractere analisado é um operador de multiplicação ou divisão
+*@brief verifica se o caractere analisado é um operador de multiplicação, divisão
+*ou AND (&)
 */
 int isMulOp(char c);
 

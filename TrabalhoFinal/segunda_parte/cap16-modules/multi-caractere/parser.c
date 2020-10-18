@@ -20,6 +20,14 @@ void factor(){
 	}else error("Unrecognized character: '%c'", lookahead);
 }
 
+void notFactor(){
+	if(lookahead == '!'){
+		match('!');
+		factor();
+		asmNot();
+	}else factor();
+}
+
 void signedTerm(){
 	char sign = lookahead;
 	if(isAddOp(lookahead))nextChar();
@@ -28,7 +36,7 @@ void signedTerm(){
 }
 
 void term(){
-	factor();
+	notFactor();
 	while(isMulOp(lookahead)){
 		switch(lookahead){
 			case'*':
@@ -36,6 +44,9 @@ void term(){
 				break;
 			case '/':
 				divide();
+				break;
+			case '&':
+				boolAnd();
 				break;
 		}
 	}
@@ -50,6 +61,12 @@ void expression(){
 				break;
 			case '-':
 				subtract();
+				break;
+			case '|':
+				boolOr();
+				break;
+			case '~':
+				boolXor();
 				break;
 		}
 	}
@@ -66,27 +83,48 @@ void assignment(){
 void add(){
 	match('+');
 	asmPush();
-	factor();
+	notFactor();
 	asmPopAdd();
 }
 
 void subtract(){
 	match('-');
 	asmPush();
-	factor();
+	notFactor();
 	asmPopSub();
+}
+
+void boolOr(){
+	match('|');
+	asmPush();
+	term();
+	asmPopOr();
+}
+
+void boolXor(){
+	match('~');
+	asmPush();
+	term();
+	asmPopXor();
 }
 
 void multiply(){
 	match('*');
 	asmPush();
-	factor();
+	notFactor();
 	asmPopMul();
 }
 
 void divide(){
 	match('/');
 	asmPush();
-	factor();
+	notFactor();
 	asmPopDiv();
+}
+
+void boolAnd(){
+	match('&');
+	asmPush();
+	notFactor();
+	asmPopAnd();
 }

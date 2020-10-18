@@ -1,0 +1,5 @@
+O conteúdo do capítulo 11 está incorparado ao  código dos capítulos subsequentes. Mas é possível verificar as incorprações, mudanças feitas neste capítulo através dos links: 
+
+*Cmparando commit anterior ao do caítul 11:   https://github.com/DanyelleAngelo/Compiladores/commit/9cbf9f6ce33d4b2079ed88a152cd04fb8463634c
+
+*Repostório no momento do Commit (capítulo 11): https://github.com/DanyelleAngelo/Compiladores/tree/9cbf9f6ce33d4b2079ed88a152cd04fb8463634c/TrrabalhoFinal/segunda_parte/Tiny

@@ -51,11 +51,10 @@ void match(char c){
 	skipWhite();*/
 }
 
-
 int isAddOp(char c){
-	return (c == '-' || c == '+');
+	return (c == '-' || c == '+' ||c== '|' || c==  '~');
 }
 
 int isMulOp(char c){
-	return (c == '*' || c == '/');
+	return (c == '*' || c == '/' || c == '&');
 }
