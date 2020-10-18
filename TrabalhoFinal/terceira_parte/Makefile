@@ -1,21 +1,17 @@
 all: clean init go
 
-init: librarys
-	gcc main.c -o main libTiny.a libList.a
+init: library
+	gcc main.c -o main libTiny.a 
 
-librarys: libList libTiny
+library: list tiny
+	ar rcs libTiny.a list.o alloc.o asmCode.o errors.o input.o output.o parser.o scanner.o
 
-libList: list
-	ar rcs libList.a list.o
-
-libTiny: tiny
-	ar rcs libTiny.a tiny.o
 
 list: list.c list.h
 	gcc -c list.c 
 
-tiny: tiny.c tiny.h
-	gcc -c tiny.c
+tiny: alloc.c alloc.h asmCode.c asmCode.h errors.c errors.h input.c input.h output.c output.h parser.c parser.h scanner.c scanner.h
+	gcc -c alloc.c asmCode.c errors.c input.c output.c parser.c scanner.c
 
 clean:
 	clear
