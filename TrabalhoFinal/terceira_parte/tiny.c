@@ -5,6 +5,24 @@
 #include <ctype.h>
 
 #include "tiny.h"
+#include "list.h"
+#include "alloc.h"
+
+typedef struct variable{
+	char name[20];
+	char type[4];
+	char value;
+}Variable;
+
+void * constructorVariable(void* data){
+    void* ptr = my_malloc(sizeof(Variable));
+    memcpy(ptr,data,sizeof(Variable));//copia data pra o bloco ptr
+    return ptr;
+}
+
+void destructorVariable(void* data){
+    free(data);
+}
 
 char *kwlist[KWLIST_SZ] = {"IF","ELSE","ENDIF","WHILE","ENDWHILE","VAR","END","READ","WRITE"};
 char kwcode[KWLIST_SZ+1] = "ileweveRW";
@@ -131,6 +149,8 @@ void asm_write(){
 }
 
 void init(){
+	list_t * var;
+	listInitialize(&var,constructorVariable,destructorVariable);
 	labelCount = 0;
 	nSym = 0;
 	//symTbl = calloc(SYMTBL_SZ,sizeof(char));
@@ -186,18 +206,6 @@ void expected(char *s){
 int newLabel(){
 	return labelCount++;
 }
-
-/*void match(char c){
-	char s[2];
-	newLine();
-	if(lookahead != c){
-		s[0] = c;
-		s[1] =  '\0';
-		expected(s);
-	}
-	nextChar();
-	skipWhite();
-}*/
 
 void matchString(char *s){
 	if(strcmp(value,s)!=0)expected(s);
