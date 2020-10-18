@@ -12,6 +12,15 @@ void init(){
 	labelCount = 0;
 	nextChar();
 	nextToken();
+	matchString("PROGRAM");
+	semiColon();
+	header();
+	topDecls();
+	matchString("BEGIN");
+	prolog();
+	block();
+	matchString("END");
+	epilog();
 }
 
 void nextChar(){

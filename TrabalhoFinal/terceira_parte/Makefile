@@ -18,4 +18,5 @@ clean:
 	rm -rf *.o
 
 go: 
+	rm -rf *.o
 	./main
