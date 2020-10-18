@@ -1,13 +1,24 @@
 #ifndef TINY_H
 #define TINY_H
-
+#include "list.h"
 #define MAX_TOKEN 16
 #define KWLIST_SZ 9
-#define SYMTBL_SZ 1000
+
+char lookahead,token, value[MAX_TOKEN+1];
+list_t * symbol;
+int labelCount; 
+
+typedef struct variable{
+	char *name;
+	char *type;
+	char *value;
+}Variable;
 
 
-char lookahead,token, *symTbl[SYMTBL_SZ], symType[SYMTBL_SZ],value[MAX_TOKEN+1];
-int nSym, labelCount; 
+/*
+*@brief inicializa a struct com as informaçẽs da variável
+*/
+void initializeStruct(Variable*var,char *name, char *type,char *value);
 
 void nextChar_x();
 /* 
@@ -267,7 +278,7 @@ void checkedUp(char *name);
 *se não verifica se a tabela de símbolos não atingiu sua capacidade máxima, se sim encerra programa,
 *se não aloca espaço na memória, se tudo der  certo salva o novo símbolo alocado na tabela de símbolos.
 */
-void addSymbol(char *name,char type);
+void addSymbol(char *name,char *type);
 
 /*
 *@brief inicializa e aloca memória para uma declaração de variável

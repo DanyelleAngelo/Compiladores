@@ -8,14 +8,9 @@
 #include "list.h"
 #include "alloc.h"
 
-typedef struct variable{
-	char name[20];
-	char type[4];
-	char value;
-}Variable;
 
 void * constructorVariable(void* data){
-    void* ptr = my_malloc(sizeof(Variable));
+    void* ptr = myMalloc(sizeof(Variable));
     memcpy(ptr,data,sizeof(Variable));//copia data pra o bloco ptr
     return ptr;
 }
@@ -149,11 +144,8 @@ void asm_write(){
 }
 
 void init(){
-	list_t * var;
-	listInitialize(&var,constructorVariable,destructorVariable);
+	listInitialize(&symbol,constructorVariable,destructorVariable);
 	labelCount = 0;
-	nSym = 0;
-	//symTbl = calloc(SYMTBL_SZ,sizeof(char));
 	nextChar();
 	nextToken();
 }
@@ -218,10 +210,6 @@ int lookaheadUp(char *s, char *list[], int size){
 		if(strcmp(list[i],s)==0)return i;
 	}
 	return -1;
-}
-
-int locate(char *name){
-	return lookaheadUp(name,symTbl,nSym);
 }
 
 void scan(){
@@ -305,8 +293,19 @@ void  duplicated(char *name){
 }
 
 int intable(char *name){
-	if(lookaheadUp(name,symTbl,nSym)<0)return 0;
-	return 1;
+	int i;
+	Variable *var;
+	listIterator aux = symbol->head;
+	for(i=0;i<symbol->size;i++){
+		var = aux->data;
+		if(strcmp(var->name,name)==0)return i;
+		aux = aux->next; 
+	}
+	return 0;
+}
+
+int locate(char *name){
+	return intable(name);
 }
 
 void checkTable(char *name){
@@ -314,36 +313,26 @@ void checkTable(char *name){
 }
 
 void checkedUp(char *name){
-	if(intable(name))duplicated(name);
+	if(intable(name)>0)duplicated(name);
 }
 
-void addSymbol(char *name,char type){
-	char *newSym;
+void initializeStruct(Variable*var,char *name, char *type,char *value){
+	var->name = myMalloc(sizeof(char)*(strlen(name)+1));
+	var->type = myMalloc(sizeof(char)*(strlen(type)+1));
+	var->value = myMalloc(sizeof(char)*(strlen("NULL")+1));
+	strcpy(var->name,name);
+	strcpy(var->type,name);
+	strcpy(var->value,value);
+}
+void addSymbol(char *name,char *type){
+	Variable var;
 	checkedUp(name);
-	if(nSym >= SYMTBL_SZ){
-		fatal("Symbol table full!");
-	}
-	newSym = (char*)malloc(sizeof(char)*(strlen(name)+1));
-	if(newSym == NULL)fatal("Out of memory!");
-	strcpy(newSym,name);
-	symTbl[nSym]=newSym;
-	nSym++;
+	initializeStruct(&var,name,type,"NULL\0");
+	listInsert(symbol,&var,0);
 }
 
 void allocVar(char *name, int value){
-	/*int value = 0, signal = 1;
-
-	if(lookahead == '='){
-		match('=');
-		newLine();	
-		if(lookahead == '-'){
-			match('-');
-			signal = -1;
-		}
-		value = signal * getNum();
-	}*/
 	printf("%s:\tdw %d\n",name,value);
-	
 }
 
 void topDecls(){
@@ -360,7 +349,7 @@ void decl(){
 	nextToken();
 	if(token !='x')expected("Variable name");
 	checkedUp(value);
-	addSymbol(value,'v');
+	addSymbol(value,"v");
 	allocVar(value,0);
 	nextToken();
 }
@@ -475,7 +464,7 @@ void firstFactor(){
 
 void assignment(){
 	char name[MAX_TOKEN+1];
-	strcpy(name,value);
+	strcpy(name,value);//para não perder value corrente
 	checkTable(name);
 	nextToken();
 	matchString("=");
