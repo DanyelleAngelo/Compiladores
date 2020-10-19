@@ -1,0 +1,15 @@
+program
+    {outro exemplo de programa errado}
+    var arroz,caro feijao,acucar,caro;
+begin
+    var tempero;
+    while (arroz < 0) | (feijao < 0) | (acucar < 0)
+        read(arroz, feijao,acucar)
+    endwhile
+    if arroz >= 15
+        caro = 1
+        write(arroz,caro);
+    else
+        caro = 0
+    endif
+end.
