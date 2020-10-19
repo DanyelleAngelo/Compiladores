@@ -20,9 +20,9 @@ void style(){
 
 void formulario(){
 	printf("<div  class='col-12 col-sm-6'>\n");
-	printf("<form id='formulario' method=get action=codigo>\n");
+	printf("<form id='formulario' method=post action=codigoenctype='multipart/form-data'>\n");
 	printf("<br><h4>Insira seu código Tiny aqui</h4><br>\n");
-	printf("<textarea name=codigo id='codigo' rows='19' style='width:95%%'></textarea><br><br>\n");
+	printf("<input type='file' size='50' name='codigo' title='Clique para procurar arquivo' ><br><br>\n");
 	printf("<div id='buttons'>\n");
 	printf("<button type='submit' class='btn btn-primary btn-lg'>Compilar</button>\n");	
 	printf("<button type='reset' class='btn btn-primary btn-lg'>Limpar tela</button>\n");	
@@ -39,7 +39,7 @@ void explanation(){
 
 int main(int charc, char *charv[]){
 	char *data,*codigo,*res;
-	data = getenv("QUERY_STRING");//pega conteúdo  enviado no form
+	data = getenv("CONTENT_LENGTH");//pega conteúdo  enviado no form
 	printf("Content-type:text/html\n\n");
 	printf("<html><head><title>Tiny1.3.1</title></head>\n");
 	printf("<link rel='stylesheet' href='https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css' integrity='sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm' crossorigin='anonymous'>\n");
@@ -55,6 +55,7 @@ int main(int charc, char *charv[]){
 		printf("</div>\n");
 	}else{
 		sscanf(data,"%s",codigo);
+		printf("%s\n", data);	
 		textoGrande = myMalloc(sizeof(char)*(strlen(data)+1));
 		strcpy(textoGrande,&data[7]);
 		init();
